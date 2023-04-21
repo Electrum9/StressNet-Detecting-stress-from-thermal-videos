@@ -45,16 +45,16 @@ def main():
 	parser.add_argument('-ba','--batch_size',type=int,required=False, default=1,help='Batch_Size')
 	parser.add_argument('-nw','--workers',type=int,required=False, default=0,help='number of workers')
 	parser.add_argument('-seed',type=int,required=False, default=5,help='random seed')
-	parser.add_argument('-data',type=str,required=False, default='../../data/mat_files/', \
+	parser.add_argument('-data',type=str,required=False, default='../data/mat_files/', \
 						help='data path')
-	parser.add_argument('-label',type=str,required=False, default='../../data/normalized_label_data/', \
+	parser.add_argument('-label',type=str,required=False, default='../data/normalized_label_data/', \
 						help='label path')
-	parser.add_argument('-sync',type=str,required=False, default='../../data/sync_data/', \
+	parser.add_argument('-sync',type=str,required=False, default='../data/sync_data/', \
 						help='ecg&vid sync')
 	parser.add_argument('-phase',type=str,required=False, default='train',help='train/test mode')
 	parser.add_argument('-split','--train_val_split', type=float, required=False, default=0.95,\
 						help='train/test mode')
-	parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=135, \
+	parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=45, \
 						help='number of frames per batch from the video to go in GPU')
 
 	#Parameters for existing model reload
