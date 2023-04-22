@@ -35,20 +35,25 @@ class CNN(nn.Module):
         def __init__(self):
                 super().__init__()
                 #loading blocks of ResNet
-                breakpoint()
+#                breakpoint()
                 # resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
                 resnet_model.conv2d_1a.conv = nn.Conv2d(1, 32, kernel_size=3, stride=2, bias=False)
                 # blocks           = list(resnet_model.children())[0:8]
+                #resnet_model.last_linear = nn.Linear(in_features=1792, out_features=2048, bias=False)
+                self.final_fc = nn.Linear(in_features=1792, out_features=2048, bias=False)
                 blocks     = list(resnet_model.children())[:-3]
-                resnet_model.last_linear = nn.Linear(in_features=1792, out_features=2048, bias=False)
                 self.convs = nn.Sequential(*blocks)     
                 # self.avg_p = nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
         def forward(self, x):
                 frames = [frame for frame in x]
-                breakpoint()
+#                breakpoint()
                 x = self.convs(torch.cat(frames))
-                breakpoint()
+                #breakpoint()
+                self.final_fc.to(x.device)
+                x = x.squeeze()
+                x = self.final_fc(x)
+#                breakpoint()
                 # x = resnet_model.last_linear(x)
                 # x = self.avg_p(x)
                 x = x.view(x.shape[0], -1)
@@ -87,6 +92,7 @@ class Merge_LSTM(nn.Module):
                 self.stress               = Classifier(fps)
 
         def forward(self, x):
+                #breakpoint()
                 batch_size, timesteps, C, H, W = x.size()
                 x = self.cnn(x)
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
