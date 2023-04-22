@@ -44,6 +44,7 @@ class CNN(nn.Module):
 
         def forward(self, x):
                 frames = [frame for frame in x]
+                breakpoint()
                 x = self.convs(torch.cat(frames))
                 x = resnet_model.last_linear(x)
                 # x = self.avg_p(x)
