@@ -17,6 +17,12 @@ from model.pep_detector import pep_detector
 print("PyTorch Version:", torch.__version__)
 print("Torchvision Version:", torchvision.__version__)
 
+import math
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.nn import Transformer, TransformerEncoder, TransformerEncoderLayer, TransformerDecoder, TransformerDecoderLayer, Dropout
+
 print("Loading ResNet Model")
 start_time = time.time()
 # resnet_model = torchvision.models.resnet50(pretrained=True, progress=True).float()
@@ -85,7 +91,7 @@ class Merge_LSTM(nn.Module):
                 x_out = x_out[-1].view(batch_size, timesteps, -1).squeeze()
                 x_out = self.detected_pep(x_out)
                 x_out2 = self.stress(x_out)
-                
+
                 return x_out, x_out2
         
 if __name__ == '__main__':
