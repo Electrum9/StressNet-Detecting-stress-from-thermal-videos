@@ -48,7 +48,8 @@ class CNN(nn.Module):
                 frames = [frame for frame in x]
                 breakpoint()
                 x = self.convs(torch.cat(frames))
-                x = resnet_model.last_linear(x)
+                breakpoint()
+                # x = resnet_model.last_linear(x)
                 # x = self.avg_p(x)
                 x = x.view(x.shape[0], -1)
                 #x.shape is frames x flat_feature_vector
