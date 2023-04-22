@@ -35,7 +35,9 @@ class CNN(nn.Module):
         def __init__(self):
                 super().__init__()
                 #loading blocks of ResNet
-                resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+                breakpoint()
+                # resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+                resnet_model.conv2d_1a.conv = nn.Conv2d(1, 32, kernel_size=3, stride=2, bias=False)
                 # blocks           = list(resnet_model.children())[0:8]
                 blocks     = list(resnet_model.children())[:-3]
                 resnet_model.last_linear = nn.Linear(in_features=1792, out_features=2048, bias=False)
