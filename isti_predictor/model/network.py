@@ -110,27 +110,20 @@ class Classifier(nn.Module):
 
                 return x1
 
-class MyTransformer(nn.Module):
-    def __init__(self, d_model=512, nhead=8, num_encoder_layers=3,
-                 num_decoder_layers=2, dim_feedforward=2048, dropout=0.1,
+class MyTransformerEncoder(nn.Module):
+    def __init__(self, d_model=512, nhead=8, num_encoder_layers=3, 
+                 dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False,
                  return_intermediate_dec=False):
         super().__init__()
         encoder_layers = TransformerEncoderLayer(d_model, nhead, dim_feedforward,
                                                 dropout, activation)
 
-        decoder_layers = TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout, activation)
-
         transformer_encoder = TransformerEncoder(encoder_layers, num_encoder_layers)
-
-        transformer_decoder = TransformerDecoder(decoder_layers, num_decoder_layers)
-
-        self.transformer_model = nn.Transformer(d_model, nhead, num_encoder_layers, num_decoder_layers, dim_feedforward,
-                                                dropout, custom_encoder=transformer_encoder, custom_decoder=transformer_decoder)
 
 
     def forward(self, src):
-        out = self.transformer_model.encoder(src)
+        out = self.transformer_encoder(src)
         return out
 
 class Merge_LSTM(nn.Module):
@@ -141,7 +134,7 @@ class Merge_LSTM(nn.Module):
                 self.num_l              = num_l
                 self.frame_rate = frame_rate
                 self.cnn                  = CNN() #initialize CNN
-                self.transformer = MyTransformer(d_model=2048)
+                self.transformer = MyTransformerEncoder(d_model=2048)
                 #self.lstm_layer   = nn.LSTM(self.in_dim, self.h_dim, self.num_l, batch_first=True)
                 self.detected_pep = pep_detector(30, 4) #initialize linear layers
                 self.stress               = Classifier(fps)
