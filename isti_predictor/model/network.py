@@ -21,7 +21,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import Transformer, TransformerEncoder, TransformerEncoderLayer, TransformerDecoder, TransformerDecoderLayer, Dropout
+from torch.nn import TransformerEncoder, TransformerEncoderLayer, Dropout
 
 print("Loading ResNet Model")
 start_time = time.time()
@@ -81,7 +81,7 @@ class OutputLayer(nn.Module):
                     nn.init.zeros_(module.bias)
 
     def forward(self, x):
-        breakpoint()
+        # breakpoint()
         if self.cls_head:
             x = self.to_cls_token(x[0,:])
         else:
@@ -90,6 +90,7 @@ class OutputLayer(nn.Module):
             """
             x = torch.mean(x, dim=1)
 
+        # breakpoint()
         return self.net(x)
 
 class Classifier(nn.Module):
@@ -105,21 +106,22 @@ class Classifier(nn.Module):
         def forward(self, x1):
                 x1 = torch.squeeze(x1)
                 x1 = F.relu(self.fc1(x1))
+                #breakpoint()
                 x1 = self.fc2(x1)
                 x1 = self.sig(x1)
 
                 return x1
 
 class MyTransformerEncoder(nn.Module):
-    def __init__(self, d_model=512, nhead=8, num_encoder_layers=3, 
+    def __init__(self, d_model=512, nhead=8, num_encoder_layers=4, 
                  dim_feedforward=2048, dropout=0.1,
                  activation="relu", normalize_before=False,
                  return_intermediate_dec=False):
         super().__init__()
-        encoder_layers = TransformerEncoderLayer(d_model, nhead, dim_feedforward,
+        self.encoder_layers = TransformerEncoderLayer(d_model, nhead, dim_feedforward,
                                                 dropout, activation)
 
-        transformer_encoder = TransformerEncoder(encoder_layers, num_encoder_layers)
+        self.transformer_encoder = TransformerEncoder(self.encoder_layers, num_encoder_layers)
 
 
     def forward(self, src):
@@ -136,14 +138,15 @@ class Merge_LSTM(nn.Module):
                 self.cnn                  = CNN() #initialize CNN
                 self.transformer = MyTransformerEncoder(d_model=2048)
                 #self.lstm_layer   = nn.LSTM(self.in_dim, self.h_dim, self.num_l, batch_first=True)
-                self.detected_pep = pep_detector(30, 4) #initialize linear layers
-                self.stress               = Classifier(fps)
+                # self.detected_pep = pep_detector(30, 4) #initialize linear layers
+                # self.stress               = Classifier(fps)
 
                 self.post_transformer_ln = nn.LayerNorm(2048)
 
                 self.cls_layer = OutputLayer(2048, num_classes=2, representation_size=1024, cls_head=True)
 
         def forward(self, x):
+                #breakpoint()
                 batch_size, timesteps, C, H, W = x.size()
                 x = self.cnn(x)
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
@@ -153,7 +156,7 @@ class Merge_LSTM(nn.Module):
                 x = torch.cat((cls_token, x), dim=0)
                 x += pos_embed
 
-                breakpoint()
+                #breakpoint()
                 x = self.transformer(x)
                 x = self.post_transformer_ln(x)
                 x = self.cls_layer(x)
@@ -161,10 +164,10 @@ class Merge_LSTM(nn.Module):
                 #x = x.view(batch_size, timesteps//self.frame_rate, -1)
                 #x_out, (h_o, c_o) = self.lstm_layer(x)
                 #x_out = x_out[-1].view(batch_size, timesteps, -1).squeeze()
-                #x_out = self.detected_pep(x_out)
-                #x_out2 = self.stress(x_out)
+                #x_out = self.detected_pep(x_out) # info for generating isti signal
+                #x_out2 = self.stress(x_out) # stress class
                 
-                return x_out, x_out2
+                return x
         
 if __name__ == '__main__':
 
