@@ -387,7 +387,7 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                                         # pep_preds  = predict_pep(mini_out)
                                         # correlation= corr.pearson_correlation(pep_preds, mini_label)
                                         # cur_corr   = correlation.item()
-                                        running_acc = running_acc + abs(cur_corr)
+                                        # running_acc = running_acc + abs(cur_corr)
 
                                 running_loss= running_loss
                                 test_loss       = test_loss + running_loss
