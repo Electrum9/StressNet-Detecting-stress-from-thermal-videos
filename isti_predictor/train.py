@@ -21,12 +21,12 @@ from torchvision import models
 import torch.optim as optim
 from tqdm import tqdm
 import wandb
-from torch.nn.functional import one_hot
+# from torch.nn.functional import one_hot
 
 from model.network import Merge_LSTM as net_model
 from dataloader.dataloader import thermaldataset
-from loss_function.utils_loss import loss_pep, predict_pep
-from loss_function.pearson_loss_1D import Pearson_Correlation
+from loss_function.utils_loss import loss_cls
+# from loss_function.pearson_loss_1D import Pearson_Correlation
 
 print("PyTorch Version:", torch.__version__)
 print("Torchvision Version:", torchvision.__version__)
@@ -168,10 +168,10 @@ def main():
         #Loss function
         print("Initializing loss function")
         # loss = loss_pep()
-        loss = nn.CrossEntropyLoss()
+        loss = loss_cls
 
         #Correlation in prediction
-        corr = Pearson_Correlation()
+        # corr = Pearson_Correlation()
 
         #Load the existing Model
         if resume == 'T':
@@ -206,16 +206,16 @@ def main():
 
         #Initialization done, Start training loop
         #parameters
-        params = {'cur_epoch':cur_epoch,
-                                'epochs' :epochs,
-                                'phase'  :phase,
-                                'fps'    :fps,
-                                'label'  :label,
-                                'data'   :data,
-                                'sync'   :sync,
-                                'batch'  :batch_size}
+        params = {'cur_epoch': cur_epoch,
+                  'epochs'   : epochs,
+                  'phase'    : phase,
+                  'fps'      : fps,
+                  'label'    : label,
+                  'data'     : data,
+                  'sync'     : sync,
+                  'batch'    : batch_size}
 
-        training_loop(args, model, optimizer, scheduler, dataloader, loss, corr,        **params)
+        training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
 
 #Save Checkpoint
 def save_checkpoint(state, filename):
@@ -223,7 +223,7 @@ def save_checkpoint(state, filename):
         torch.save(state, checkpoint_path)
         return
         
-def training_loop(args, model, optimizer, scheduler, dataloader, loss, corr, **params):
+def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params):
         #training vars
         best_train_loss  = 100
         mean_train_loss  = 100
@@ -284,8 +284,8 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, corr, **p
                                                 # loss_total = nn.BCELoss(mini_out, s_label_new)
 
                                                 # loss_total = loss(None, out2, None, s_label) # dummy arguments for now
-                                                onehot = one_hot(torch.tensor(s_label), num_classes=2).to(device=mini_input.device, dtype=mini_input.dtype).squeeze(0)
-                                                loss_total = loss(out2, onehot)
+                                                # onehot = one_hot(torch.tensor(s_label), num_classes=2).to(device=mini_input.device, dtype=mini_input.dtype).squeeze(0)
+                                                loss_total = loss(out2, s_label, mini_input.device)
 
                                                 if(math.isnan(loss_total.item())):
                                                         print("gradient explosion or vanished, updated learning rate")
@@ -374,18 +374,19 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, corr, **p
                                         mini_label = labels[:,idx:idx+params['fps'],:]
                                         if params['fps'] > len(mini_label.squeeze()): continue  
                                         #output generation
-                                        mini_out, out2   = model(mini_input)
+                                        out2   = model(mini_input)
                                         
                                         #loss computation
-                                        loss_total = loss(mini_out, out2, mini_label, s_label)
+                                        # loss_total = loss(mini_out, out2, mini_label, s_label)
+                                        loss_total = loss(out2, s_label, mini_input.device)
                                         cur_loss   = loss_total.item()
                                         running_loss = running_loss + cur_loss
                                         print("Local loss : ", cur_loss)
 
                                         #predictions
-                                        pep_preds  = predict_pep(mini_out)
-                                        correlation= corr.pearson_correlation(pep_preds, mini_label)
-                                        cur_corr   = correlation.item()
+                                        # pep_preds  = predict_pep(mini_out)
+                                        # correlation= corr.pearson_correlation(pep_preds, mini_label)
+                                        # cur_corr   = correlation.item()
                                         running_acc = running_acc + abs(cur_corr)
 
                                 running_loss= running_loss
