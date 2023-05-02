@@ -192,8 +192,8 @@ class thermaldataset(tdata.Dataset):
 		# label_data = np.pad(label_data, (0, int(label_pad_len)), 'symmetric').reshape((-1, 1))
 
 		#update corresponding label if person moves out of frame
-		cur_label = np.repeat(cur_label, self.labels_per_frame) #to make size equal to label length
-		cur_label = cur_label.reshape(-1,1)
+		# cur_label = np.repeat(cur_label, self.labels_per_frame) #to make size equal to label length
+		# cur_label = cur_label.reshape(-1,1)
 		#added if the person moves out of the frame then make label 0
 		try:
 			label_data = label_data*cur_label

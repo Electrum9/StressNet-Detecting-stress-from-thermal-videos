@@ -142,7 +142,8 @@ def main():
         #Dataloader
         print("Initializing dataloader")
         datasets  = {}
-        dataset   = thermaldataset(label, data, sync, phase='train')
+        # dataset   = thermaldataset(label, data, sync, phase='train')
+        dataset   = thermaldataset(data, phase='train')
         '''Indexes for train/val'''
         idxs = list(range(0, len(dataset)))
         random.shuffle(idxs)
@@ -364,10 +365,10 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, corr, **p
                                         print("Local loss : ", cur_loss)
 
                                         #predictions
-                                        pep_preds  = predict_pep(mini_out)
-                                        correlation= corr.pearson_correlation(pep_preds, mini_label)
-                                        cur_corr   = correlation.item()
-                                        running_acc = running_acc + abs(cur_corr)
+                                        # pep_preds  = predict_pep(mini_out)
+                                        # correlation= corr.pearson_correlation(pep_preds, mini_label)
+                                        # cur_corr   = correlation.item()
+                                        # running_acc = running_acc + abs(cur_corr)
 
                                 running_loss= running_loss
                                 test_loss       = test_loss + running_loss
