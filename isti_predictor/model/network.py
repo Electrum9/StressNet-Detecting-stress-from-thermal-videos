@@ -28,8 +28,12 @@ start_time = time.time()
 # resnet_model = torchvision.models.resnet50(pretrained=True, progress=True).float()
 
 from facenet_pytorch import MTCNN, InceptionResnetV1
+from segment_anything import sam_model_registry, SamPredictor
+from pathlib import Path
 
-resnet_model = InceptionResnetV1(pretrained='vggface2').float()
+path = Path.cwd()/"model/sam_vit_h_4b8939.pth"
+sam =  sam_model_registry["default"](checkpoint=path)
+enc_model = SamPredictor(sam)
 
 class CNN(nn.Module):
         def __init__(self):
@@ -37,25 +41,27 @@ class CNN(nn.Module):
                 #loading blocks of ResNet
 #                breakpoint()
                 # resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-                resnet_model.conv2d_1a.conv = nn.Conv2d(1, 32, kernel_size=3, stride=2, bias=False)
+                #resnet_model.conv2d_1a.conv = nn.Conv2d(1, 32, kernel_size=3, stride=2, bias=False)
                 # blocks           = list(resnet_model.children())[0:8]
                 #resnet_model.last_linear = nn.Linear(in_features=1792, out_features=2048, bias=False)
-                self.final_fc = nn.Linear(in_features=1792, out_features=2048, bias=False)
-                blocks     = list(resnet_model.children())[:-3]
-                self.convs = nn.Sequential(*blocks)     
+                #self.final_fc = nn.Linear(in_features=1792, out_features=2048, bias=False)
+                #blocks     = list(resnet_model.children())[:-3]
+                #self.convs = nn.Sequential(*blocks)     
                 # self.avg_p = nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
         def forward(self, x):
-                frames = [frame for frame in x]
+                #frames = [frame for frame in x]
 #                breakpoint()
-                x = self.convs(torch.cat(frames))
+                #x = self.convs(torch.cat(frames))
                 #breakpoint()
-                self.final_fc.to(x.device)
-                x = x.squeeze()
-                x = self.final_fc(x)
+                #self.final_fc.to(x.device)
+                #x = x.squeeze()
+                #x = self.final_fc(x)
 #                breakpoint()
                 # x = resnet_model.last_linear(x)
                 # x = self.avg_p(x)
+                enc_model.set_image(x)
+                x = enc_model.get_image_embedding()
                 x = x.view(x.shape[0], -1)
                 #x.shape is frames x flat_feature_vector
                 
