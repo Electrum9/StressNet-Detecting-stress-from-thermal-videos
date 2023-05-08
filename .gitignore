@@ -1,6 +1,7 @@
 ### PROJECT FILES/DIRS ###
 data/*
 model_checkpoints_r50/*
+*.pth
 
 ### PYTHON FILES/DIRS ###
 *.pyc
