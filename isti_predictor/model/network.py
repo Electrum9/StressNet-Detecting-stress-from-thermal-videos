@@ -31,9 +31,12 @@ from facenet_pytorch import MTCNN, InceptionResnetV1
 from segment_anything import sam_model_registry, SamPredictor
 from pathlib import Path
 
-path = Path.cwd()/"model/sam_vit_h_4b8939.pth"
-sam =  sam_model_registry["default"](checkpoint=path)
+path = Path.cwd() / "model/sam_vit_h_4b8939.pth"
+sam =  sam_model_registry["default"](checkpoint=path).cuda()
 enc_model = SamPredictor(sam)
+
+# sam.pixel_mean.to(device='cuda:0')
+# sam.pixel_std.to(device='cuda:0')
 
 class CNN(nn.Module):
         def __init__(self):
@@ -50,21 +53,35 @@ class CNN(nn.Module):
                 # self.avg_p = nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
         def forward(self, x):
-                #frames = [frame for frame in x]
-#                breakpoint()
+                # sam.pixel_mean.to(device=x.device)
+                # sam.pixel_std.to(device=x.device)
+                torch.cuda.empty_cache()
+
+                breakpoint()
+                snippets = [snippet.repeat(1, 3, 1, 1) for snippet in x] # grab individual snippets, duplicate along channel dimension
+                # breakpoint()
                 #x = self.convs(torch.cat(frames))
                 #breakpoint()
                 #self.final_fc.to(x.device)
                 #x = x.squeeze()
                 #x = self.final_fc(x)
-#                breakpoint()
+                # breakpoint()
                 # x = resnet_model.last_linear(x)
                 # x = self.avg_p(x)
-                enc_model.set_image(x)
-                x = enc_model.get_image_embedding()
-                x = x.view(x.shape[0], -1)
-                #x.shape is frames x flat_feature_vector
-                
+                breakpoint()
+                preprocessed = [torch.stack([sam.preprocess(f) for f in s], axis=0)  for s in snippets]
+                embeddings = [sam.image_encoder(p) for p in preprocessed]
+                # # for s in snippets:
+                #     breakpoint()
+                #     # enc_model.set_image(s)
+                #     e = sam.get_image_embedding()
+
+                #     embeddings.append(e)
+                #     # x = x.view(x.shape[0], -1)
+                    #x.shape is frames x flat_feature_vector
+
+                x = torch.cat(embeddings)
+                    
                 return x
 
 class Classifier(nn.Module):

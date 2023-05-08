@@ -54,7 +54,7 @@ def main():
 	parser.add_argument('-phase',type=str,required=False, default='train',help='train/test mode')
 	parser.add_argument('-split','--train_val_split', type=float, required=False, default=0.95,\
 						help='train/test mode')
-	parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=45, \
+	parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=15, \
 						help='number of frames per batch from the video to go in GPU')
 
 	#Parameters for existing model reload
