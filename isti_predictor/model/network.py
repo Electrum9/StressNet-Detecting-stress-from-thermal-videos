@@ -31,9 +31,9 @@ from facenet_pytorch import MTCNN, InceptionResnetV1
 from segment_anything import sam_model_registry, SamPredictor
 from pathlib import Path
 
-path = Path.cwd() / "model/sam_vit_h_4b8939.pth"
-sam =  sam_model_registry["default"](checkpoint=path).cuda()
-enc_model = SamPredictor(sam)
+# path = Path.cwd() / "model/sam_vit_h_4b8939.pth"
+# sam =  sam_model_registry["default"](checkpoint=path).cuda()
+# enc_model = SamPredictor(sam)
 
 # sam.pixel_mean.to(device='cuda:0')
 # sam.pixel_std.to(device='cuda:0')
@@ -41,6 +41,14 @@ enc_model = SamPredictor(sam)
 class CNN(nn.Module):
         def __init__(self):
                 super().__init__()
+
+                self.path = Path.cwd() / "model/sam_vit_b_01ec64.pth"
+                self.sam =  sam_model_registry["vit_b"](checkpoint=self.path)
+                # self.enc_model = SamPredictor(self.sam)
+                breakpoint()
+                # self.sam.image_encoder.patch_embed.proj = nn.Conv2d(1, 1280, kernel_size=(16, 16), stride=(16, 16))
+
+                self.sam.cuda()
                 #loading blocks of ResNet
 #                breakpoint()
                 # resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -59,6 +67,7 @@ class CNN(nn.Module):
 
                 breakpoint()
                 snippets = [snippet.repeat(1, 3, 1, 1) for snippet in x] # grab individual snippets, duplicate along channel dimension
+                # snippets = [snippet for snippet in x] # grab individual snippets, duplicate along channel dimension
                 # breakpoint()
                 #x = self.convs(torch.cat(frames))
                 #breakpoint()
@@ -69,8 +78,19 @@ class CNN(nn.Module):
                 # x = resnet_model.last_linear(x)
                 # x = self.avg_p(x)
                 breakpoint()
-                preprocessed = [torch.stack([sam.preprocess(f) for f in s], axis=0)  for s in snippets]
-                embeddings = [sam.image_encoder(p) for p in preprocessed]
+
+                embeddings = []
+
+                # for s in snippets:
+                #     for f in s:
+                #         p = self.preprocess(f).unsqueeze(0)
+                #         e = self.sam.image_encoder(p)
+                #         embeddings.append(e)
+                # breakpoint()
+                breakpoint()
+                preprocessed = [torch.stack([self.sam.preprocess(f) for f in s], axis=0)  for s in snippets]
+                # preprocessed = snippets
+                embeddings = [self.sam.image_encoder(p) for p in preprocessed]
                 # # for s in snippets:
                 #     breakpoint()
                 #     # enc_model.set_image(s)
@@ -83,6 +103,20 @@ class CNN(nn.Module):
                 x = torch.cat(embeddings)
                     
                 return x
+
+        def preprocess(self, x: torch.Tensor) -> torch.Tensor:
+            """Normalize pixel values and pad to a square input."""
+            # Normalize colors
+            # x = (x - self.pixel_mean) / self.pixel_std
+
+            # Pad
+            h, w = x.shape[-2:]
+            print(f"{self.sam.image_encoder.img_size=}")
+            padh = self.sam.image_encoder.img_size - h
+            padw = self.sam.image_encoder.img_size - w
+
+            x = F.pad(x, (0, padw, 0, padh))
+            return x
 
 class Classifier(nn.Module):
         def __init__(self, pred_isti, scale=0.5):
