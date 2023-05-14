@@ -63,7 +63,6 @@ class CNN(nn.Module):
         def forward(self, x):
                 # sam.pixel_mean.to(device=x.device)
                 # sam.pixel_std.to(device=x.device)
-                os.environ['PYTORCH_CUDA_ALLOC_CONF']='max_split_size_mb:128'
                 torch.cuda.empty_cache()
 
                 #breakpoint()
@@ -90,9 +89,10 @@ class CNN(nn.Module):
                 # breakpoint()
 
                 preprocessed = [torch.stack([self.sam.preprocess(f) for f in s], axis=0)  for s in snippets]
-                preprocessed = [i.half() for i in preprocessed]
+                preprocessed = [p.half() for p in preprocessed]
                 breakpoint()
-                print(preprocessed[0].dtype)
+
+                print(preprocessed[0].shape)
                 # preprocessed = snippets
                 embeddings = [self.sam.image_encoder(p) for p in preprocessed] # out of memory on this line
                 # # for s in snippets:
@@ -114,12 +114,8 @@ class CNN(nn.Module):
             # x = (x - self.pixel_mean) / self.pixel_std
             
             # Pad
-            x = x.half()
-            breakpoint()
-
             h, w = x.shape[-2:]
             print(f"{self.sam.image_encoder.img_size=}")
-            print("yo mama")
             padh = self.sam.image_encoder.img_size - h
             padw = self.sam.image_encoder.img_size - w
 
