@@ -41,8 +41,8 @@ class SpatialBackbone(nn.Module):
                 self.sam =  sam_model_registry["vit_b"](checkpoint=self.path)
                 # self.enc_model = SamPredictor(
                 #breakpoint()
-                # self.sam.image_encoder.patch_embed.proj = nn.Conv2d(1, 1280, kernel_size=(16, 16), stride=(16, 16))
-                self.sam.cuda().half()
+                self.sam.image_encoder.patch_embed.proj = nn.Conv2d(1, 1280, kernel_size=(16, 16), stride=(16, 16))
+                # self.sam.cuda().half()
                 #loading blocks of ResNet
 #                breakpoint()
                 # resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -55,34 +55,8 @@ class SpatialBackbone(nn.Module):
                 # self.avg_p = nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
         def forward(self, x):
-                # sam.pixel_mean.to(device=x.device)
-                # sam.pixel_std.to(device=x.device)
-
-                #breakpoint()
-                snippets = [snippet.repeat(1, 3, 1, 1) for snippet in x] # grab individual snippets, duplicate along channel dimension
-                # snippets = [snippet for self.sam)snippet in x] # grab individual snippets, duplicate along channel dimension
-                # breakpoint()
-                #x = self.convs(torch.cat(frames))
-                #breakpoint()
-                #self.final_fc.to(x.device)
-                #x = x.squeeze()
-                #x = self.final_fc(x)
-                # breakpoint()
-                # x = resnet_model.last_linear(x)
-                # x = self.avg_p(x)
-                #breakpoint()
-
-                embeddings = []
-
-                # for s in snippets:
-                #     for f in s:
-                #         p = self.preprocess(f).unsqueeze(0)
-                #         e = self.sam.image_encoder(p)
-                #         embeddings.append(e)
-                # breakpoint()
-
-                preprocessed = [torch.stack([self.sam.preprocess(f) for f in s], axis=0)  for s in snippets]
-                preprocessed = [p.half() for p in preprocessed]
+                preprocessed = [torch.stack([self.sam.preprocess(f) for f in s], axis=0)  for s in x] # preprocess all frames in each snippet for the given batch
+                # preprocessed = [p.half() for p in preprocessed]
                 breakpoint()
 
                 print(preprocessed[0].shape)
@@ -141,7 +115,7 @@ class Merge_LSTM(nn.Module):
                 self.h_dim              = h_dim
                 self.num_l              = num_l
                 self.frame_rate = frame_rate
-                self.cnn                  = SpatialBackbone() #initialize SpatialBackbone
+                self.embedding                  = SpatialBackbone() #initialize SpatialBackbone
                 self.lstm_layer   = nn.LSTM(self.in_dim, self.h_dim, self.num_l, batch_first=True)
                 self.detected_pep = pep_detector(30, 4) #initialize linear layers
                 self.stress               = Classifier(fps)
@@ -149,7 +123,8 @@ class Merge_LSTM(nn.Module):
         def forward(self, x):
                 #breakpoint()
                 batch_size, timesteps, C, H, W = x.size()
-                x = self.cnn(x)
+                x = self.embedding(x)
+                breakpoint()
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
                 x = x.view(batch_size, timesteps//self.frame_rate, -1)
                 x_out, (h_o, c_o) = self.lstm_layer(x)

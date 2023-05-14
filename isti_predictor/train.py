@@ -37,178 +37,181 @@ except OSError as exc:
         pass
 
 def main():
-	#Input arguments/training settings
-	parser = argparse.ArgumentParser()
-	parser.add_argument('-e','--epochs',type=int,required=False,default=300, help='Number_of_Epochs')
-	parser.add_argument('-lr','--learning_rate',type=float,required=False,default=0.0001, \
-						help='Learning_Rate')
-	parser.add_argument('-ba','--batch_size',type=int,required=False, default=1,help='Batch_Size')
-	parser.add_argument('-nw','--workers',type=int,required=False, default=0,help='number of workers')
-	parser.add_argument('-seed',type=int,required=False, default=5,help='random seed')
-	parser.add_argument('-data',type=str,required=False, default='../data/mat_files/', \
-						help='data path')
-	parser.add_argument('-label',type=str,required=False, default='../data/normalized_label_data/', \
-						help='label path')
-	parser.add_argument('-sync',type=str,required=False, default='../data/sync_data/', \
-						help='ecg&vid sync')
-	parser.add_argument('-phase',type=str,required=False, default='train',help='train/test mode')
-	parser.add_argument('-split','--train_val_split', type=float, required=False, default=0.95,\
-						help='train/test mode')
-	parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=5, \
-						help='number of frames per batch from the video to go in GPU')
+        #Input arguments/training settings
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-e','--epochs',type=int,required=False,default=300, help='Number_of_Epochs')
+        parser.add_argument('-lr','--learning_rate',type=float,required=False,default=0.0001, \
+                                                help='Learning_Rate')
+        parser.add_argument('-ba','--batch_size',type=int,required=False, default=1,help='Batch_Size')
+        parser.add_argument('-nw','--workers',type=int,required=False, default=0,help='number of workers')
+        parser.add_argument('-seed',type=int,required=False, default=5,help='random seed')
+        parser.add_argument('-data',type=str,required=False, default='../data/mat_files/', \
+                                                help='data path')
+        parser.add_argument('-label',type=str,required=False, default='../data/normalized_label_data/', \
+                                                help='label path')
+        parser.add_argument('-sync',type=str,required=False, default='../data/sync_data/', \
+                                                help='ecg&vid sync')
+        parser.add_argument('-phase',type=str,required=False, default='train',help='train/test mode')
+        parser.add_argument('-split','--train_val_split', type=float, required=False, default=0.95,\
+                                                help='train/test mode')
+        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=5, \
+                                                help='number of frames per batch from the video to go in GPU')
 
-	#Parameters for existing model reload
-	parser.add_argument('-resume',type=str,required=False, default='F',help='resume training')
-	parser.add_argument('-hyper_param',type=str,required=False, default='F', \
-						help='existing hyper-parameters')
-	parser.add_argument('-cp','--checkpoint_path',type=str,required=False, \
-						default='../model_checkpoints_r50/', help='resume training')
-	parser.add_argument('-use_wandb', default=False, type=bool)
+        #Parameters for existing model reload
+        parser.add_argument('-resume',type=str,required=False, default='F',help='resume training')
+        parser.add_argument('-hyper_param',type=str,required=False, default='F', \
+                                                help='existing hyper-parameters')
+        parser.add_argument('-cp','--checkpoint_path',type=str,required=False, \
+                                                default='../model_checkpoints_r50/', help='resume training')
+        parser.add_argument('-use_wandb', default=False, type=bool)
 
-	#parameters
-	args   = parser.parse_args()
-	epochs = args.epochs
-	l_rate = args.learning_rate
-	data   = args.data
-	label  = args.label
-	sync   = args.sync
-	phase  = args.phase
-	seed   = args.seed
-	split  = args.train_val_split
-	fps    = args.frames_in_GPU  #numbers of frames per batch
-	batch_size = args.batch_size
-	workers = args.workers
+        #parameters
+        args   = parser.parse_args()
+        epochs = args.epochs
+        l_rate = args.learning_rate
+        data   = args.data
+        label  = args.label
+        sync   = args.sync
+        phase  = args.phase
+        seed   = args.seed
+        split  = args.train_val_split
+        fps    = args.frames_in_GPU  #numbers of frames per batch
+        batch_size = args.batch_size
+        workers = args.workers
 
-	if args.use_wandb:
-		wandb.init(project="stressnet", entity="satish1901")
+        if args.use_wandb:
+                wandb.init(project="stressnet", entity="satish1901")
 
-		wandb.config = {
-			"learning_rate": l_rate,
-			"epochs" : epochs,
-			"frame_inGPU": fps,
-			"phase": phase
-		}
+                wandb.config = {
+                        "learning_rate": l_rate,
+                        "epochs" : epochs,
+                        "frame_inGPU": fps,
+                        "phase": phase
+                }
 
-	#Parameters for exisitng model reload
-	c_point_dir = args.checkpoint_path
-	resume		= args.resume
-	hyper_param = args.hyper_param
-	cur_epoch	= 0
+        #Parameters for exisitng model reload
+        c_point_dir = args.checkpoint_path
+        resume          = args.resume
+        hyper_param = args.hyper_param
+        cur_epoch       = 0
 
-	#Fix seed
-	torch.manual_seed(seed)
-	torch.backends.cudnn.deterministic = True
-	torch.backends.cudnn.benchmark = False
-	np.random.seed(seed) #sets the seed for random number
-	torch.cuda.manual_seed(seed)
-	torch.cuda.manual_seed_all(seed)
-	random.seed(seed)
-	
-	#Initializing Network & LSTM dimension
-	frame_rate = 15; in_dim = frame_rate*2048; h_dim = frame_rate*30; num_l = 6
-	print("Initializing Network")
-	model  = net_model(in_dim, h_dim, num_l, frame_rate, fps)
+        #Fix seed
+        torch.manual_seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        np.random.seed(seed) #sets the seed for random number
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        random.seed(seed)
+        
+        #Initializing Network & LSTM dimension
+        frame_rate = 15; in_dim = frame_rate*2048; h_dim = frame_rate*30; num_l = 6
+        print("Initializing Network")
+        model  = net_model(in_dim, h_dim, num_l, frame_rate, fps)
 
-	#Freez parameters and layers training control
-	layers		 = ('lstm_layer')
-	lstm_train	 = []
-	resnet_train = []
-	for n, p in model.named_parameters():
-		try:
-			layer = n.split('.')[0]
-		except:
-			pass
-		if layer in layers:
-			p.requires_grad = True
-			lstm_train.append(p)
-		else:
-			p.requires_grad = True
-			resnet_train.append(p)
+        #Freez parameters and layers training control
+        layers           = ('lstm_layer')
+        lstm_train       = []
+        resnet_train = []
+        for n, p in model.named_parameters():
+                try:
+                        layer = n.split('.')[0]
+                except:
+                        pass
+                if layer in layers:
+                        p.requires_grad = True
+                        lstm_train.append(p)
+                else:
+                        p.requires_grad = False
+                        resnet_train.append(p)
 
-	#Optimizer
-	print("Initializing optimizer")
-	optimizer = optim.SGD([{"params": resnet_train, "lr": 0.00001},
-							{"params": lstm_train}], lr=l_rate)
+        #Optimizer
+        print("Initializing optimizer")
+        # optimizer = optim.SGD([{"params": resnet_train, "lr": 0.00001},
+        #                                               {"params": lstm_train}], lr=l_rate)
 
-	#Network to GPU
-	model.cuda()
-	
-	#Scheduler
-	print("Initializing scheduler")
-	lambda1   = lambda epoch : 1.0 if epoch<10 else (0.1 if epoch<20 else 0.1)
-	lambda2   = lambda epoch : 1.0 if epoch<20 else (0.1 if epoch<30 else 0.1)
-	scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[lambda1, lambda2])
-		
-	#Dataloader
-	print("Initializing dataloader")
-	datasets  = {}
-	dataset   = thermaldataset(label, data, sync, phase='train')
-	'''Indexes for train/val'''
-	idxs = list(range(0, len(dataset)))
-	random.shuffle(idxs)
-	split_idx = int(len(idxs) * split)
-	trainIdxs = idxs[:split_idx]; valIdxs = idxs[:split_idx//5]
-	'''create subsets'''
-	datasets['train'] = torch.utils.data.Subset(dataset, trainIdxs)
-	datasets['test']  = torch.utils.data.Subset(dataset, valIdxs)
-	print("number of training samples", len(datasets['train']))
-	#print(datasets['train'].dataset)
-	dataloader_tr  = torch.utils.data.DataLoader(datasets['train'], batch_size=batch_size, \
-												shuffle=True, num_workers=workers)
-	dataloader_val = torch.utils.data.DataLoader(datasets['test'], batch_size=batch_size, \
-												shuffle=True, num_workers=workers)
-	dataloader = {'train': dataloader_tr, 'test' : dataloader_val}
+        optimizer = optim.SGD([{"params": lstm_train}], lr=l_rate)
+        breakpoint()
 
-	#Loss function
-	print("Initializing loss function")
-	loss = loss_pep()
+        #Network to GPU
+        model.cuda()
+        
+        #Scheduler
+        print("Initializing scheduler")
+        # lambda1   = lambda epoch : 1.0 if epoch<10 else (0.1 if epoch<20 else 0.1)
+        lambda2   = lambda epoch : 1.0 if epoch<20 else (0.1 if epoch<30 else 0.1)
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[lambda2])
+                
+        #Dataloader
+        print("Initializing dataloader")
+        datasets  = {}
+        dataset   = thermaldataset(label, data, sync, phase='train')
+        '''Indexes for train/val'''
+        idxs = list(range(0, len(dataset)))
+        random.shuffle(idxs)
+        split_idx = int(len(idxs) * split)
+        trainIdxs = idxs[:split_idx]; valIdxs = idxs[:split_idx//5]
+        '''create subsets'''
+        datasets['train'] = torch.utils.data.Subset(dataset, trainIdxs)
+        datasets['test']  = torch.utils.data.Subset(dataset, valIdxs)
+        print("number of training samples", len(datasets['train']))
+        #print(datasets['train'].dataset)
+        dataloader_tr  = torch.utils.data.DataLoader(datasets['train'], batch_size=batch_size, \
+                                                                                                shuffle=True, num_workers=workers)
+        dataloader_val = torch.utils.data.DataLoader(datasets['test'], batch_size=batch_size, \
+                                                                                                shuffle=True, num_workers=workers)
+        dataloader = {'train': dataloader_tr, 'test' : dataloader_val}
 
-	#Correlation in prediction
-	corr = Pearson_Correlation()
+        #Loss function
+        print("Initializing loss function")
+        loss = loss_pep()
 
-	#Load the existing Model
-	if resume == 'T':
-		try:
-			checkpoint_dir = f'{c_point_dir}/*'
-			f_list = glob.glob(checkpoint_dir)
-			latest_checkpoint = max(f_list, key=os.path.getctime)
-			print("Resuming Existing state of Pretrained Model")
-			checkpoint = torch.load(latest_checkpoint)
-			model.load_state_dict(checkpoint['model_state_dict'])
-			cur_epoch  = checkpoint['epoch']
-			cur_loss   = checkpoint['loss']
-			print("Loading Done, Loss: {}, Current_epoch: {}".format(cur_loss, cur_epoch))
-		except:
-			print("Loading Existing state of Pretrained Model Failed ! ")
-			print("Initializing training from epoch 0, PRESS c to continue")
-			import pdb; pdb.set_trace()
+        #Correlation in prediction
+        corr = Pearson_Correlation()
 
-	#Loading the existing Hyperparameters
-	if hyper_param == 'T':
-		try:
-			checkpoint_dir = f'{c_point_dir}/*'
-			f_list = glob.glob(checkpoint_dir)
-			latest_checkpoint = max(f_list, key=os.path.getctime)
-			checkpoint = torch.load(latest_checkpoint)
-			print("Loading existing hyper-parameters")
-			optimizer.load_state_dict(checkpoint['optimizer'])
-			scheduler.load_state_dict(checkpoint['scheduler'])
-		except:
-			print("Failed to load existing hyper-parameters")
-			print(" Initializing from epoch 0, PRESS c to continue")
+        #Load the existing Model
+        if resume == 'T':
+                try:
+                        checkpoint_dir = f'{c_point_dir}/*'
+                        f_list = glob.glob(checkpoint_dir)
+                        latest_checkpoint = max(f_list, key=os.path.getctime)
+                        print("Resuming Existing state of Pretrained Model")
+                        checkpoint = torch.load(latest_checkpoint)
+                        model.load_state_dict(checkpoint['model_state_dict'])
+                        cur_epoch  = checkpoint['epoch']
+                        cur_loss   = checkpoint['loss']
+                        print("Loading Done, Loss: {}, Current_epoch: {}".format(cur_loss, cur_epoch))
+                except:
+                        print("Loading Existing state of Pretrained Model Failed ! ")
+                        print("Initializing training from epoch 0, PRESS c to continue")
+                        import pdb; pdb.set_trace()
 
-	#Initialization done, Start training loop
-	#parameters
-	params = {'cur_epoch':cur_epoch,
-				'epochs' :epochs,
-				'phase'  :phase,
-				'fps'	 :fps,
-				'label'  :label,
-				'data'	 :data,
-				'sync'	 :sync,
-				'batch'  :batch_size}
+        #Loading the existing Hyperparameters
+        if hyper_param == 'T':
+                try:
+                        checkpoint_dir = f'{c_point_dir}/*'
+                        f_list = glob.glob(checkpoint_dir)
+                        latest_checkpoint = max(f_list, key=os.path.getctime)
+                        checkpoint = torch.load(latest_checkpoint)
+                        print("Loading existing hyper-parameters")
+                        optimizer.load_state_dict(checkpoint['optimizer'])
+                        scheduler.load_state_dict(checkpoint['scheduler'])
+                except:
+                        print("Failed to load existing hyper-parameters")
+                        print(" Initializing from epoch 0, PRESS c to continue")
 
-	training_loop(args, model, optimizer, scheduler, dataloader, loss, corr,	**params)
+        #Initialization done, Start training loop
+        #parameters
+        params = {'cur_epoch':cur_epoch,
+                                'epochs' :epochs,
+                                'phase'  :phase,
+                                'fps'    :fps,
+                                'label'  :label,
+                                'data'   :data,
+                                'sync'   :sync,
+                                'batch'  :batch_size}
+
+        training_loop(args, model, optimizer, scheduler, dataloader, loss, corr,        **params)
 
 #Save Checkpoint
 def save_checkpoint(state, filename):
