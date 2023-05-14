@@ -39,6 +39,7 @@ class VideoLoader(preprocess_face, non_linearity):
 			return -1, -1
 		
 		video_mat = h5py.File(self.vid_path[0],'r')['data']
+		breakpoint()
 		print(video_mat)
 		if(video_mat.shape[0] == 0):
 			print("no frames read...")
@@ -51,7 +52,7 @@ class VideoLoader(preprocess_face, non_linearity):
 			self.frames = np.array(self.frames)
 			self.frames = self.gaus_act(self.frames)
 			self.label_modifier = np.array(self.label_modifier)
-			
+		
 		return self.frames, self.label_modifier[:self.frames.shape[0]]
 
 class LabelLoader:

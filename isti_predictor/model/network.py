@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+        #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jun 2 13:11:19 2020
@@ -39,18 +39,28 @@ class SpatialBackbone(nn.Module):
 
                 self.path = Path.cwd() / "model/sam_vit_b_01ec64.pth"
                 self.sam =  sam_model_registry["vit_b"](checkpoint=self.path)
-                # self.enc_model = SamPredictor(self.sam)
-                breakpoint()
+                # self.enc_model = SamPredictor(
+                #breakpoint()
                 # self.sam.image_encoder.patch_embed.proj = nn.Conv2d(1, 1280, kernel_size=(16, 16), stride=(16, 16))
-                self.sam.cuda()
+                self.sam.cuda().half()
+                #loading blocks of ResNet
+#                breakpoint()
+                # resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+                #resnet_model.conv2d_1a.conv = nn.Conv2d(1, 32, kernel_size=3, stride=2, bias=False)
+                # blocks           = list(resnet_model.children())[0:8]
+                #resnet_model.last_linear = nn.Linear(in_features=1792, out_features=2048, bias=False)
+                #self.final_fc = nn.Linear(in_features=1792, out_features=2048, bias=False)
+                #blocks     = list(resnet_model.children())[:-3]
+                #self.convs = nn.Sequential(*blocks)     
+                # self.avg_p = nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
         def forward(self, x):
                 # sam.pixel_mean.to(device=x.device)
                 # sam.pixel_std.to(device=x.device)
 
-                breakpoint()
+                #breakpoint()
                 snippets = [snippet.repeat(1, 3, 1, 1) for snippet in x] # grab individual snippets, duplicate along channel dimension
-                # snippets = [snippet for snippet in x] # grab individual snippets, duplicate along channel dimension
+                # snippets = [snippet for self.sam)snippet in x] # grab individual snippets, duplicate along channel dimension
                 # breakpoint()
                 #x = self.convs(torch.cat(frames))
                 #breakpoint()
@@ -60,7 +70,7 @@ class SpatialBackbone(nn.Module):
                 # breakpoint()
                 # x = resnet_model.last_linear(x)
                 # x = self.avg_p(x)
-                breakpoint()
+                #breakpoint()
 
                 embeddings = []
 
@@ -71,11 +81,13 @@ class SpatialBackbone(nn.Module):
                 #         embeddings.append(e)
                 # breakpoint()
 
-                breakpoint()
                 preprocessed = [torch.stack([self.sam.preprocess(f) for f in s], axis=0)  for s in snippets]
-                # preprocessed = snippets
-                embeddings = [self.sam.image_encoder(p) for p in preprocessed]
+                preprocessed = [p.half() for p in preprocessed]
+                breakpoint()
 
+                print(preprocessed[0].shape)
+                # preprocessed = snippets
+                embeddings = [self.sam.image_encoder(p) for p in preprocessed] # out of memory on this line
                 # # for s in snippets:
                 #     breakpoint()
                 #     # enc_model.set_image(s)
