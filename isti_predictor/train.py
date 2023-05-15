@@ -122,9 +122,9 @@ def main():
                         lstm_train.append(p)
                 else:
                         if "patch_embed.proj" in n:
-                                p.requires_grad = False
-                        else:
                                 p.requires_grad = True
+                        else:
+                                p.requires_grad = False
                         
                         resnet_train.append(p)
                         
