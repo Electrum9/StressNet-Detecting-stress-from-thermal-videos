@@ -40,9 +40,10 @@ class SpatialBackbone(nn.Module):
                 self.path = Path.cwd() / "model/sam_vit_b_01ec64.pth"
                 self.sam =  sam_model_registry["vit_b"](checkpoint=self.path)
                 # self.enc_model = SamPredictor(
-                #breakpoint()
-                self.sam.image_encoder.patch_embed.proj = nn.Conv2d(1, 1280, kernel_size=(16, 16), stride=(16, 16))
-                # self.sam.cuda().half()
+                breakpoint()
+                self.sam.image_encoder.patch_embed.proj = nn.Conv2d(1, 768, kernel_size=(16, 16), stride=(16, 16))
+
+                
                 #loading blocks of ResNet
 #                breakpoint()
                 # resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -55,8 +56,7 @@ class SpatialBackbone(nn.Module):
                 # self.avg_p = nn.AdaptiveAvgPool2d(output_size=(1, 1))
 
         def forward(self, x):
-                preprocessed = [torch.stack([self.sam.preprocess(f) for f in s], axis=0)  for s in x] # preprocess all frames in each snippet for the given batch
-                # preprocessed = [p.half() for p in preprocessed]
+                preprocessed = [torch.stack([self.preprocess(f) for f in s], axis=0)  for s in x] # preprocess all frames in each snippet for the given batch
                 breakpoint()
 
                 print(preprocessed[0].shape)
@@ -83,11 +83,13 @@ class SpatialBackbone(nn.Module):
             """
             # Pad
             h, w = x.shape[-2:]
+            
             print(f"{self.sam.image_encoder.img_size=}")
             padh = self.sam.image_encoder.img_size - h
             padw = self.sam.image_encoder.img_size - w
 
-            x = F.pad(x, (0, padw, 0, padh))
+            x = F.pad(x, (0, padw, 0, padh)).to(torch.half)
+            print(x.dtype)
             return x
 
 class Classifier(nn.Module):

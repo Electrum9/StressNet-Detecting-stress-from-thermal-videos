@@ -108,7 +108,6 @@ def main():
         frame_rate = 15; in_dim = frame_rate*2048; h_dim = frame_rate*30; num_l = 6
         print("Initializing Network")
         model  = net_model(in_dim, h_dim, num_l, frame_rate, fps)
-
         #Freez parameters and layers training control
         layers           = ('lstm_layer')
         lstm_train       = []
@@ -122,25 +121,30 @@ def main():
                         p.requires_grad = True
                         lstm_train.append(p)
                 else:
-                        p.requires_grad = False
+                        if "patch_embed.proj" in n:
+                                p.requires_grad = False
+                        else:
+                                p.requires_grad = True
+                        
                         resnet_train.append(p)
+                        
 
         #Optimizer
         print("Initializing optimizer")
         # optimizer = optim.SGD([{"params": resnet_train, "lr": 0.00001},
         #                                               {"params": lstm_train}], lr=l_rate)
 
-        optimizer = optim.SGD([{"params": lstm_train}], lr=l_rate)
+        optimizer = optim.SGD([{"params": resnet_train},{"params": lstm_train}], lr=l_rate)
         breakpoint()
 
         #Network to GPU
-        model.cuda()
+        model.cuda().half()
         
         #Scheduler
         print("Initializing scheduler")
-        # lambda1   = lambda epoch : 1.0 if epoch<10 else (0.1 if epoch<20 else 0.1)
+        lambda1   = lambda epoch : 1.0 if epoch<10 else (0.1 if epoch<20 else 0.1)
         lambda2   = lambda epoch : 1.0 if epoch<20 else (0.1 if epoch<30 else 0.1)
-        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[lambda2])
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[lambda1, lambda2])
                 
         #Dataloader
         print("Initializing dataloader")

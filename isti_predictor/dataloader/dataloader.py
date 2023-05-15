@@ -39,7 +39,6 @@ class VideoLoader(preprocess_face, non_linearity):
 			return -1, -1
 		
 		video_mat = h5py.File(self.vid_path[0],'r')['data']
-		breakpoint()
 		print(video_mat)
 		if(video_mat.shape[0] == 0):
 			print("no frames read...")
