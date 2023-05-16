@@ -33,64 +33,60 @@ from pathlib import Path
 
 torch.cuda.empty_cache()
 
-class SpatialBackbone(nn.Module):
+sam_path = Path.cwd() / "model/sam_vit_b_01ec64.pth"
+sam =  sam_model_registry["vit_b"](checkpoint=sam_path)
+
+class ConvBackbone(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv_layer = nn.Conv2d(1, 768, kernel_size=(16, 16), stride=(16, 16))
+
+    def forward(self, x):
+        preprocessed = [torch.stack([self.preprocess(f) for f in s], axis=0)  for s in x] # preprocess all frames in each snippet for the given batch
+        out = [self.conv_layer(s) for s in preprocessed]
+
+        return torch.cat(out)
+
+    def preprocess(self, x):
+        """
+        Analogue of preprocess method for Sam class.
+        Just resizes the input, does not normalize with respect to mean
+        and stddev, as that is intended for RGB images (not thermal).
+        """
+        # Pad
+        h, w = x.shape[-2:]
+        
+        padh = 1024 - h
+        padw = 1024 - w
+
+        x = F.pad(x, (0, padw, 0, padh)).to(torch.half)
+        print(x.dtype)
+        return x
+
+class FeatureExtractor(nn.Module):
         def __init__(self):
                 super().__init__()
 
-                self.path = Path.cwd() / "model/sam_vit_b_01ec64.pth"
-                self.sam =  sam_model_registry["vit_b"](checkpoint=self.path)
+                # self.path = Path.cwd() / "model/sam_vit_b_01ec64.pth"
+                # self.sam =  sam_model_registry["vit_b"](checkpoint=self.path)
                 # self.enc_model = SamPredictor(
                 breakpoint()
-                self.sam.image_encoder.patch_embed.proj = nn.Conv2d(1, 768, kernel_size=(16, 16), stride=(16, 16))
-
+                self.image_encoder = sam.image_encoder
+                children = list(self.image_encoder.children())[1:]
+                self.first = nn.Sequential(*children[0]) # extract out layers in ModuleList, cascade them
+                self.rest = nn.Sequential(self.first, children[1])
                 
-                #loading blocks of ResNet
-#                breakpoint()
-                # resnet_model.conv1 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-                #resnet_model.conv2d_1a.conv = nn.Conv2d(1, 32, kernel_size=3, stride=2, bias=False)
-                # blocks           = list(resnet_model.children())[0:8]
-                #resnet_model.last_linear = nn.Linear(in_features=1792, out_features=2048, bias=False)
-                #self.final_fc = nn.Linear(in_features=1792, out_features=2048, bias=False)
-                #blocks     = list(resnet_model.children())[:-3]
-                #self.convs = nn.Sequential(*blocks)     
-                # self.avg_p = nn.AdaptiveAvgPool2d(output_size=(1, 1))
-
         def forward(self, x):
-                preprocessed = [torch.stack([self.preprocess(f) for f in s], axis=0)  for s in x] # preprocess all frames in each snippet for the given batch
-                breakpoint()
+            breakpoint()
+            embeddings = []
 
-                print(preprocessed[0].shape)
-                # preprocessed = snippets
-                embeddings = [self.sam.image_encoder(p) for p in preprocessed] # out of memory on this line
-                # # for s in snippets:
-                #     breakpoint()
-                #     # enc_model.set_image(s)
-                #     e = sam.get_image_embedding()
+            for s in x:
+                embed = self.rest(s)
+                embeddings.append(embed)
 
-                #     embeddings.append(e)
-                #     # x = x.view(x.shape[0], -1)
-                    #x.shape is frames x flat_feature_vector
+            embeddings = torch.cat(embeddings)
+            return embeddings
 
-                x = torch.cat(embeddings)
-                    
-                return x
-
-        def preprocess(self, x):
-            """
-            Analogue of preprocess method for Sam class.
-            Just resizes the input, does not normalize with respect to mean
-            and stddev, as that is intended for RGB images (not thermal).
-            """
-            # Pad
-            h, w = x.shape[-2:]
-            
-            print(f"{self.sam.image_encoder.img_size=}")
-            padh = self.sam.image_encoder.img_size - h
-            padw = self.sam.image_encoder.img_size - w
-
-            x = F.pad(x, (0, padw, 0, padh)).to(torch.half)
-            print(x.dtype)
-            return x
 
 class Classifier(nn.Module):
         def __init__(self, pred_isti, scale=0.5):
@@ -110,6 +106,7 @@ class Classifier(nn.Module):
 
                 return x1
 
+
 class Merge_LSTM(nn.Module):
         def __init__(self, in_dim, h_dim, num_l, frame_rate, fps):
                 super().__init__()
@@ -117,7 +114,7 @@ class Merge_LSTM(nn.Module):
                 self.h_dim              = h_dim
                 self.num_l              = num_l
                 self.frame_rate = frame_rate
-                self.embedding                  = SpatialBackbone() #initialize SpatialBackbone
+                self.embedding = FeatureExtractor() #initialize SpatialBackbone
                 self.lstm_layer   = nn.LSTM(self.in_dim, self.h_dim, self.num_l, batch_first=True)
                 self.detected_pep = pep_detector(30, 4) #initialize linear layers
                 self.stress               = Classifier(fps)
@@ -135,6 +132,25 @@ class Merge_LSTM(nn.Module):
                 x_out2 = self.stress(x_out)
 
                 return x_out, x_out2
+
+class model_parallel(nn.Module):
+    def __init__(self, in_dim, h_dim, num_l, frame_rate, fps):
+        super().__init__()
+        self.sub_network1 = ConvBackbone()
+        self.sub_network2 = Merge_LSTM(in_dim, h_dim, num_l, frame_rate, fps)
+        breakpoint()
+
+        self.sub_network1.cuda(1).half()
+        self.sub_network2.cuda(0).half()
+
+    def forward(self, x):
+        breakpoint()
+        x = x.cuda(1)
+        x = self.sub_network1(x)
+        breakpoint()
+        x = x.cuda(0).unsqueeze(0)
+        x = self.sub_network2(x)
+        return x
         
 if __name__ == '__main__':
 

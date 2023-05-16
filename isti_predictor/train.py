@@ -23,6 +23,7 @@ from tqdm import tqdm
 import wandb
 
 from model.network import Merge_LSTM as net_model
+from model.network import model_parallel as overall_model
 from dataloader.dataloader import thermaldataset
 from loss_function.utils_loss import loss_pep, predict_pep
 from loss_function.pearson_loss_1D import Pearson_Correlation
@@ -54,7 +55,7 @@ def main():
         parser.add_argument('-phase',type=str,required=False, default='train',help='train/test mode')
         parser.add_argument('-split','--train_val_split', type=float, required=False, default=0.95,\
                                                 help='train/test mode')
-        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=5, \
+        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=1, \
                                                 help='number of frames per batch from the video to go in GPU')
 
         #Parameters for existing model reload
@@ -107,7 +108,8 @@ def main():
         #Initializing Network & LSTM dimension
         frame_rate = 15; in_dim = frame_rate*2048; h_dim = frame_rate*30; num_l = 6
         print("Initializing Network")
-        model  = net_model(in_dim, h_dim, num_l, frame_rate, fps)
+        # model  = net_model(in_dim, h_dim, num_l, frame_rate, fps)
+        model  = overall_model(in_dim, h_dim, num_l, frame_rate, fps)
         #Freez parameters and layers training control
         layers           = ('lstm_layer')
         lstm_train       = []
@@ -130,6 +132,7 @@ def main():
                         
 
         #Optimizer
+        breakpoint()
         print("Initializing optimizer")
         # optimizer = optim.SGD([{"params": resnet_train, "lr": 0.00001},
         #                                               {"params": lstm_train}], lr=l_rate)
@@ -138,7 +141,7 @@ def main():
         breakpoint()
 
         #Network to GPU
-        model.cuda().half()
+        # model.cuda().half()
         
         #Scheduler
         print("Initializing scheduler")
@@ -271,7 +274,8 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, corr, **p
                                                 mini_input = inputs[:,idx:idx+params['fps'],:,:]
                                                 mini_label = labels[:,label_idx:label_idx+(params['fps']),:]
                                                 #if section of video less then fps seconds, then drop the rest of the video
-                                                if params['fps'] > len(mini_label.squeeze()): continue
+                                                # if params['fps'] > len(mini_label.squeeze()): continue
+                                                breakpoint()
                                                 mini_out, out2   = model(mini_input)
                                                 loss_total = loss(mini_out, out2, mini_label, s_label)
                                                 if(math.isnan(loss_total.item())):
