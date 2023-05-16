@@ -55,7 +55,7 @@ def main():
         parser.add_argument('-phase',type=str,required=False, default='train',help='train/test mode')
         parser.add_argument('-split','--train_val_split', type=float, required=False, default=0.95,\
                                                 help='train/test mode')
-        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=5, \
+        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=1, \
                                                 help='number of frames per batch from the video to go in GPU')
 
         #Parameters for existing model reload
@@ -106,9 +106,10 @@ def main():
         random.seed(seed)
         
         #Initializing Network & LSTM dimension
-        frame_rate = 15; in_dim = frame_rate*2048; h_dim = frame_rate*30; num_l = 6
+        frame_rate = 15; in_dim = 256*64*64; h_dim = frame_rate*30; num_l = 6
         print("Initializing Network")
         # model  = net_model(in_dim, h_dim, num_l, frame_rate, fps)
+        # fps = snippet size num frames in GPU 
         model  = overall_model(in_dim, h_dim, num_l, frame_rate, fps)
         #Freez parameters and layers training control
         layers           = ('lstm_layer')

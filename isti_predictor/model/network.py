@@ -117,19 +117,21 @@ class Merge_LSTM(nn.Module):
                 self.h_dim              = h_dim
                 self.num_l              = num_l
                 self.frame_rate = frame_rate
+                self.fps = fps
                 self.embedding = FeatureExtractor() #initialize SpatialBackbone
                 self.lstm_layer   = nn.LSTM(self.in_dim, self.h_dim, self.num_l, batch_first=True)
                 self.detected_pep = pep_detector(30, 4) #initialize linear layers
                 self.stress               = Classifier(fps)
 
         def forward(self, x):
-                batch_size, timesteps, H, W, C = x.size()
+                breakpoint()
+                batch_size, frames_per_batch, H, W, C  = x.size()
                 x = self.embedding(x)
                 breakpoint()
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
-                x = x.view(batch_size, timesteps//self.frame_rate, -1)
+                x = x.reshape(batch_size, frames_per_batch, -1)
                 x_out, (h_o, c_o) = self.lstm_layer(x)
-                x_out = x_out[-1].view(batch_size, timesteps, -1).squeeze()
+                x_out = x_out[-1].view(batch_size, frames_per_batch, -1).squeeze()
                 x_out = self.detected_pep(x_out)
                 x_out2 = self.stress(x_out)
 
@@ -146,10 +148,8 @@ class model_parallel(nn.Module):
         self.sub_network2.cuda(0).half()
 
     def forward(self, x):
-        breakpoint()
         x = x.cuda(1)
         x = self.sub_network1(x)
-        breakpoint()
         x = x.cuda(0).unsqueeze(0)
         x = self.sub_network2(x)
         return x
