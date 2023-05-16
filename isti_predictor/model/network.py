@@ -44,8 +44,9 @@ class ConvBackbone(nn.Module):
     def forward(self, x):
         preprocessed = [torch.stack([self.preprocess(f) for f in s], axis=0)  for s in x] # preprocess all frames in each snippet for the given batch
         out = [self.conv_layer(s) for s in preprocessed]
-
-        return torch.cat(out)
+        patch_embed = [j.permute(0,2,3,1) for j in out]
+        breakpoint()
+        return torch.cat(patch_embed)
 
     def preprocess(self, x):
         """
@@ -72,16 +73,18 @@ class FeatureExtractor(nn.Module):
                 # self.enc_model = SamPredictor(
                 breakpoint()
                 self.image_encoder = sam.image_encoder
-                children = list(self.image_encoder.children())[1:]
-                self.first = nn.Sequential(*children[0]) # extract out layers in ModuleList, cascade them
-                self.rest = nn.Sequential(self.first, children[1])
+                children = list(self.image_encoder.children())[1:] #list of two types of blocks 
+                print(list(self.image_encoder.children()))
+                self.whole = nn.Sequential(*children[0], children[1]) # extract out layers in ModuleList, cascade them
                 
         def forward(self, x):
             breakpoint()
             embeddings = []
 
             for s in x:
-                embed = self.rest(s)
+                print(s)
+                embed = self.whole(s)
+                
                 embeddings.append(embed)
 
             embeddings = torch.cat(embeddings)
@@ -120,8 +123,8 @@ class Merge_LSTM(nn.Module):
                 self.stress               = Classifier(fps)
 
         def forward(self, x):
-                #breakpoint()
-                batch_size, timesteps, C, H, W = x.size()
+                breakpoint()
+                batch_size, timesteps, H, W, C = x.size()
                 x = self.embedding(x)
                 breakpoint()
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
