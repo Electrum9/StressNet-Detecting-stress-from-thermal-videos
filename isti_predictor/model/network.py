@@ -72,10 +72,9 @@ class FeatureExtractor(nn.Module):
                 # self.enc_model = SamPredictor(
                 self.image_encoder = sam.image_encoder
                 children = list(self.image_encoder.children())[1:] #list of two types of blocks 
-                print(list(self.image_encoder.children()))
                 self.transformer = nn.Sequential(*children[0]) # extract out layers in ModuleList, cascade them
-                self.rest = nn.Sequential(children[1])
-
+                self.sam_conv = nn.Sequential(children[1])
+                #self.pool = nn.AvgPool2d(kernel_size=(16,16),stride=(16,16))
 
         def forward(self, x):
             breakpoint()
@@ -83,8 +82,8 @@ class FeatureExtractor(nn.Module):
 
             for s in x:
                 transform = self.transformer(s)
-                embed = self.rest(transform.permute(0,3,1,2))
-                
+                embed = self.sam_conv(transform.permute(0,3,1,2))
+                #embed = self.pool(embed)
                 embeddings.append(embed)
 
             embeddings = torch.cat(embeddings)
