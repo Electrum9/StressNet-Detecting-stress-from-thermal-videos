@@ -77,8 +77,8 @@ class OutputLayer(nn.Module):
         for name, module in self.net.named_children():
             if isinstance(module, nn.Linear):
                 if module.weight.shape[0] == self.num_classes:
-                    nn.init.zeros_(module.weight)
-                    nn.init.zeros_(module.bias)
+                    nn.init.normal_(module.weight)
+                    nn.init.normal_(module.bias)
 
     def forward(self, x):
         # breakpoint()
@@ -92,25 +92,6 @@ class OutputLayer(nn.Module):
 
         # breakpoint()
         return self.net(x)
-
-class Classifier(nn.Module):
-        def __init__(self, pred_isti, scale=0.5):
-                super().__init__()
-                self.representation_size = int(pred_isti*scale)
-
-                #self.Attn = Attention(pred_isti)
-                self.fc1  = nn.Linear(pred_isti, self.representation_size)
-                self.fc2  = nn.Linear(self.representation_size, 1)
-                self.sig  = nn.Sigmoid()
-
-        def forward(self, x1):
-                x1 = torch.squeeze(x1)
-                x1 = F.relu(self.fc1(x1))
-                #breakpoint()
-                x1 = self.fc2(x1)
-                x1 = self.sig(x1)
-
-                return x1
 
 class MyTransformerEncoder(nn.Module):
     def __init__(self, d_model=512, nhead=8, num_encoder_layers=4, 
@@ -139,7 +120,6 @@ class Merge_LSTM(nn.Module):
                 self.transformer = MyTransformerEncoder(d_model=2048)
                 #self.lstm_layer   = nn.LSTM(self.in_dim, self.h_dim, self.num_l, batch_first=True)
                 # self.detected_pep = pep_detector(30, 4) #initialize linear layers
-                # self.stress               = Classifier(fps)
 
                 self.post_transformer_ln = nn.LayerNorm(2048)
 
@@ -152,7 +132,19 @@ class Merge_LSTM(nn.Module):
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
                 curr_device = x.device
                 cls_token = nn.Parameter(torch.zeros(1, 2048)).to(curr_device)
-                pos_embed = nn.Parameter(torch.zeros(46, 2048)).to(curr_device)
+                # pos_embed = nn.Parameter(torch.zeros(46, 2048)).to(curr_device)
+
+                PE = torch.zeros((46, 2048))
+
+                pos = torch.arange(46).unsqueeze(1)
+                div_term = torch.exp(torch.arange(0, 2048, 2) * (-np.log(10000.0) / 2048))
+
+                PE[:, 0::2] = torch.sin(pos * div_term)
+                PE[:, 1::2] = torch.cos(pos * div_term)
+
+                pos_embed = nn.Parameter(PE).to(curr_device)
+
+
                 x = torch.cat((cls_token, x), dim=0)
                 x += pos_embed
 
