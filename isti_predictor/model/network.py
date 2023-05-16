@@ -45,8 +45,8 @@ class ConvBackbone(nn.Module):
         preprocessed = [torch.stack([self.preprocess(f) for f in s], axis=0)  for s in x] # preprocess all frames in each snippet for the given batch
         out = [self.conv_layer(s) for s in preprocessed]
         patch_embed = [j.permute(0,2,3,1) for j in out]
-        breakpoint()
-        return torch.cat(patch_embed)
+        processed = torch.cat(patch_embed)
+        return processed
 
     def preprocess(self, x):
         """
@@ -61,7 +61,6 @@ class ConvBackbone(nn.Module):
         padw = 1024 - w
 
         x = F.pad(x, (0, padw, 0, padh)).to(torch.half)
-        print(x.dtype)
         return x
 
 class FeatureExtractor(nn.Module):
@@ -71,19 +70,20 @@ class FeatureExtractor(nn.Module):
                 # self.path = Path.cwd() / "model/sam_vit_b_01ec64.pth"
                 # self.sam =  sam_model_registry["vit_b"](checkpoint=self.path)
                 # self.enc_model = SamPredictor(
-                breakpoint()
                 self.image_encoder = sam.image_encoder
                 children = list(self.image_encoder.children())[1:] #list of two types of blocks 
                 print(list(self.image_encoder.children()))
-                self.whole = nn.Sequential(*children[0], children[1]) # extract out layers in ModuleList, cascade them
-                
+                self.transformer = nn.Sequential(*children[0]) # extract out layers in ModuleList, cascade them
+                self.rest = nn.Sequential(children[1])
+
+
         def forward(self, x):
             breakpoint()
             embeddings = []
 
             for s in x:
-                print(s)
-                embed = self.whole(s)
+                transform = self.transformer(s)
+                embed = self.rest(transform.permute(0,3,1,2))
                 
                 embeddings.append(embed)
 
@@ -123,7 +123,6 @@ class Merge_LSTM(nn.Module):
                 self.stress               = Classifier(fps)
 
         def forward(self, x):
-                breakpoint()
                 batch_size, timesteps, H, W, C = x.size()
                 x = self.embedding(x)
                 breakpoint()
