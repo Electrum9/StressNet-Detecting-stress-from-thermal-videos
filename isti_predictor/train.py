@@ -124,17 +124,14 @@ def main():
                         layer = n.split('.')[0]
                 except:
                         pass
-                if layer in layers:
-                        p.requires_grad = True
+                if layer in {'encoder'}:
                         trans_train.append(p)
-                else:
-                        p.requires_grad = True
+                elif layer in {'spatial_backbone', 'proj', 'classifier'}:
                         resnet_train.append(p)
 
         #Optimizer
         print("Initializing optimizer")
-        optimizer = optim.SGD([{"params": resnet_train, "lr": 0.0001},
-                                                        {"params": trans_train}], lr=l_rate)
+        optimizer = optim.Adam([{"params": resnet_train, "lr": 0.0001}, {"params": trans_train}], lr=l_rate)
 
         #Network to GPU
         model.cuda()

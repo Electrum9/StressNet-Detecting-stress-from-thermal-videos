@@ -61,9 +61,15 @@ class Merge_LSTM(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1,1))
         self.maxpool = nn.AdaptiveMaxPool2d((1,1))
 
-        self.classifier = nn.Linear(256, 1)
-        nn.init.normal_(self.classifier.weight)
-        nn.init.normal_(self.classifier.bias)
+        self.classifier = nn.Sequential(nn.Linear(256, 128),
+                                        nn.ReLU(),
+                                        nn.Linear(128, 1)
+                                       )
+
+        for name, module in self.classifier.named_children():
+            if isinstance(module, nn.Linear):
+                nn.init.normal_(module.weight)
+                nn.init.normal_(module.bias)
 
     
     def forward(self, x):
