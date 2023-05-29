@@ -7,10 +7,11 @@ softmax=nn.Softmax(-1)
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 ce_loss = nn.CrossEntropyLoss()
+BCE = nn.BCEWithLogitsLoss()
 
 def loss_cls(pred, class_label, device):
     # oh = nn.functional.one_hot(torch.tensor(class_label), num_classes=2).to(device=device, dtype=pred.dtype).squeeze(0)
-    return ce_loss(pred.unsqueeze(0), class_label.to(device=device))
+    return BCE(pred.squeeze(dim=0), class_label.to(device=device, dtype=torch.float32))
 
 class loss_pep():
         def __init__(self, num_bins=1, max_val=1):
