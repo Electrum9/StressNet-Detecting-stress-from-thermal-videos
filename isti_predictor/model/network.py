@@ -61,8 +61,10 @@ class Merge_LSTM(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1,1))
         self.maxpool = nn.AdaptiveMaxPool2d((1,1))
 
+        self.layernorm = nn.LayerNorm(256)
+
         self.classifier = nn.Sequential(nn.Linear(256, 128),
-                                        nn.ReLU(),
+                                        nn.Tanh(),
                                         nn.Linear(128, 1)
                                        )
 
@@ -96,6 +98,8 @@ class Merge_LSTM(nn.Module):
 
         src = self.encoder(src, src_key_padding_mask=masks, pos=pos_embeddings)
         # breakpoint()
+
+        src = self.layernorm(src)
         final = self.classifier(src[0,:]) # only operate on very first token
 
         return final
