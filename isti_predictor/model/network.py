@@ -74,7 +74,7 @@ class FeatureExtractor(nn.Module):
                 children = list(self.image_encoder.children())[1:] #list of two types of blocks 
                 self.transformer = nn.Sequential(*children[0]) # extract out layers in ModuleList, cascade them
                 self.sam_conv = nn.Sequential(children[1])
-                #self.pool = nn.AvgPool2d(kernel_size=(16,16),stride=(16,16))
+                self.pool = nn.AvgPool2d(kernel_size=(16,16),stride=(16,16))
 
         def forward(self, x):
             breakpoint()
@@ -82,8 +82,9 @@ class FeatureExtractor(nn.Module):
 
             for s in x:
                 transform = self.transformer(s)
+                breakpoint()
                 embed = self.sam_conv(transform.permute(0,3,1,2))
-                #embed = self.pool(embed)
+                embed = self.pool(embed)
                 embeddings.append(embed)
 
             embeddings = torch.cat(embeddings)
@@ -108,6 +109,17 @@ class Classifier(nn.Module):
 
                 return x1
 
+class Merge_CNN(nn.Module):
+        def __init__(self):
+              super().__init__()
+              self.conv_layer = ConvBackbone()
+              self.embedding = FeatureExtractor()
+
+        def forward(self,x):
+              x = self.conv_layer(x)
+              x = self.embedding(x)
+              return x
+        
 
 class Merge_LSTM(nn.Module):
         def __init__(self, in_dim, h_dim, num_l, frame_rate, fps):
@@ -117,7 +129,6 @@ class Merge_LSTM(nn.Module):
                 self.num_l              = num_l
                 self.frame_rate = frame_rate
                 self.fps = fps
-                self.embedding = FeatureExtractor() #initialize SpatialBackbone
                 self.lstm_layer   = nn.LSTM(self.in_dim, self.h_dim, self.num_l, batch_first=True)
                 self.detected_pep = pep_detector(30, 4) #initialize linear layers
                 self.stress               = Classifier(fps)
@@ -125,7 +136,6 @@ class Merge_LSTM(nn.Module):
         def forward(self, x):
                 breakpoint()
                 batch_size, frames_per_batch, H, W, C  = x.size()
-                x = self.embedding(x)
                 breakpoint()
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
                 x = x.reshape(batch_size, frames_per_batch, -1)
@@ -139,25 +149,26 @@ class Merge_LSTM(nn.Module):
 class model_parallel(nn.Module):
     def __init__(self, in_dim, h_dim, num_l, frame_rate, fps):
         super().__init__()
-        self.sub_network1 = ConvBackbone()
+        self.sub_network1 = Merge_CNN()
         self.sub_network2 = Merge_LSTM(in_dim, h_dim, num_l, frame_rate, fps)
         breakpoint()
-
+        print(self.sub_network1)
         self.sub_network1.cuda(1).half()
         self.sub_network2.cuda(0).half()
 
     def forward(self, x):
         x = x.cuda(1)
         x = self.sub_network1(x)
+        breakpoint()
         x = x.cuda(0).unsqueeze(0)
         x = self.sub_network2(x)
         return x
         
 if __name__ == '__main__':
 
-        lstm = Merge_LSTM(256, 6, 3).cuda()
+        lstm = Merge_LSTM(256, 6, 3).cuda().half()
         print(lstm)
-        inputs = torch.rand(1,499,3,240,200).float().cuda()
+        inputs = torch.rand(1,499,3,240,200).float().cuda().half()
         #import pdb; pdb.set_trace()
         out = lstm(inputs)
 
