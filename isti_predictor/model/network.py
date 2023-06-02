@@ -77,18 +77,17 @@ class FeatureExtractor(nn.Module):
                 self.pool = nn.AvgPool2d(kernel_size=(16,16),stride=(16,16))
 
         def forward(self, x):
-            breakpoint()
-            embeddings = []
+                breakpoint()
+                embeddings = []
 
-            for s in x:
-                transform = self.transformer(s)
+                transform = self.transformer(x)
                 breakpoint()
                 embed = self.sam_conv(transform.permute(0,3,1,2))
                 embed = self.pool(embed)
-                embeddings.append(embed)
+                embeddings.append(embed)    
 
-            embeddings = torch.cat(embeddings)
-            return embeddings
+                embeddings = torch.cat(embeddings)
+                return embeddings
 
 
 class Classifier(nn.Module):
@@ -152,15 +151,12 @@ class model_parallel(nn.Module):
         self.sub_network1 = Merge_CNN()
         self.sub_network2 = Merge_LSTM(in_dim, h_dim, num_l, frame_rate, fps)
         breakpoint()
-        print(self.sub_network1)
-        self.sub_network1.cuda(1).half()
+        self.sub_network1.cuda(0).half()
         self.sub_network2.cuda(0).half()
 
     def forward(self, x):
-        x = x.cuda(1)
+        x = x.cuda(0)
         x = self.sub_network1(x)
-        breakpoint()
-        x = x.cuda(0).unsqueeze(0)
         x = self.sub_network2(x)
         return x
         
