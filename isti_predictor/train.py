@@ -55,7 +55,7 @@ def main():
         parser.add_argument('-phase',type=str,required=False, default='train',help='train/test mode')
         parser.add_argument('-split','--train_val_split', type=float, required=False, default=0.95,\
                                                 help='train/test mode')
-        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=3, \
+        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=15, \
                                                 help='number of frames per batch from the video to go in GPU')
 
         #Parameters for existing model reload
@@ -133,13 +133,13 @@ def main():
                         
 
         #Optimizer
-        breakpoint()
+        #breakpoint()
         print("Initializing optimizer")
         # optimizer = optim.SGD([{"params": resnet_train, "lr": 0.00001},
         #                                               {"params": lstm_train}], lr=l_rate)
 
         optimizer = optim.SGD([{"params": resnet_train},{"params": lstm_train}], lr=l_rate)
-        breakpoint()
+        #breakpoint()
 
         #Network to GPU
         # model.cuda().half()

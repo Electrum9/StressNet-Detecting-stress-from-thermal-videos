@@ -134,6 +134,7 @@ class Merge_LSTM(nn.Module):
 
         def forward(self, x):
                 breakpoint()
+                x = torch.unsqueeze(x,0)
                 batch_size, frames_per_batch, H, W, C  = x.size()
                 breakpoint()
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
@@ -157,6 +158,7 @@ class model_parallel(nn.Module):
     def forward(self, x):
         x = x.cuda(0)
         x = self.sub_network1(x)
+        print(x.shape) # B C H W
         x = self.sub_network2(x)
         return x
         
