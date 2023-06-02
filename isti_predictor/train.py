@@ -146,7 +146,8 @@ def main():
         print("Initializing scheduler")
         lambda1   = lambda epoch : 1.0 if epoch<10 else (0.1 if epoch<20 else 0.1)
         lambda2   = lambda epoch : 1.0 if epoch<20 else (0.1 if epoch<30 else 0.1)
-        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[lambda1, lambda2])
+        lambda3   = lambda epoch : 1.0 if epoch<20 else (0.1 if epoch<30 else 0.1)
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[lambda1, lambda2, lambda3])
                 
         #Dataloader
         print("Initializing dataloader")
@@ -423,19 +424,43 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                                     print(f"NO STRESS PREDICTED, CONFIDENCE: {confidence}")
 
                                 if overall == s_label:
-                                    running_acc += 1
+                                    test_acc  += 1
                                 # test_acc = test_acc + running_acc
+
+                                if ((s_label == 1) == overall_prediction):
+                                    TP +=1
+
+                                if ((s_label == 1) != overall_prediction):
+                                    FP +=1
+
+                                if ((s_label == 0) == overall_prediction):
+                                    TN +=1
+
+                                if ((s_label == 0) != overall_prediction):
+                                    FN +=1
+
+                                precision = TP/(TP+FP)
+                                recall = TP/(TP+FN)
+                                tpr = recall
+                                tnr = TN/(TP+FP)
+                                acc = (TP+TN)/(TP+TN+FP+FN)
+                                bal_acc = (TPR+TNR)/2
 
                         #mean test loss and acc
                         mean_test_loss = test_loss / (iteration+1)
-                        mean_test_acc  = running_acc / (iteration+1)
+                        mean_test_acc  = test_acc / (iteration+1)
 
                         cur_test_vars = {'Test_loss': mean_test_loss,
-                                                         'Test_accuracy' : mean_test_acc,
-                                                         'Phase'        : 'Test',
-                                                         'epoch'        : epoch+1,
-                                                         'iteration': iteration+1
-                                                        }
+                                         'Test_accuracy': mean_test_acc,
+                                         'Precision': precision,
+                                         'Recall': recall,
+                                         'TNR': tnr,
+                                         'Classification Accuracy': acc,
+                                         'Balanced Accuracy': bal_acc,
+                                         'Phase': 'Test',
+                                         'epoch': epoch+1,
+                                         'iteration': iteration+1
+                                         }
                         best_test_vars= {'Best_test_loss':best_test_loss,
                                                          'Min Loss epoch':best_epoch_test
                                                         }
