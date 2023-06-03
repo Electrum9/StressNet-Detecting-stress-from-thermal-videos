@@ -60,7 +60,7 @@ class ConvBackbone(nn.Module):
         padh = 1024 - h
         padw = 1024 - w
 
-        x = F.pad(x, (0, padw, 0, padh)).to(torch.half)
+        x = F.pad(x, (0, padw, 0, padh))
         return x
 
 class FeatureExtractor(nn.Module):
@@ -129,7 +129,7 @@ class Merge_LSTM(nn.Module):
                 self.frame_rate = frame_rate
                 self.fps = fps
                 self.lstm_layer   = nn.LSTM(self.in_dim, self.h_dim, self.num_l, batch_first=True)
-                self.detected_pep = pep_detector(30, 4) #initialize linear layers
+                self.detected_pep = pep_detector(450, 2) #initialize linear layers
                 self.stress               = Classifier(fps)
 
         def forward(self, x):
@@ -140,7 +140,9 @@ class Merge_LSTM(nn.Module):
                 #timestamp/15 as frame rate is 15 fps. we will push 1 second info to lstm as 1 seq
                 x = x.reshape(batch_size, frames_per_batch, -1)
                 x_out, (h_o, c_o) = self.lstm_layer(x)
+                print(x_out.shape)
                 x_out = x_out[-1].view(batch_size, frames_per_batch, -1).squeeze()
+                
                 x_out = self.detected_pep(x_out)
                 x_out2 = self.stress(x_out)
 
@@ -152,21 +154,21 @@ class model_parallel(nn.Module):
         self.sub_network1 = Merge_CNN()
         self.sub_network2 = Merge_LSTM(in_dim, h_dim, num_l, frame_rate, fps)
         breakpoint()
-        self.sub_network1.cuda(0).half()
-        self.sub_network2.cuda(0).half()
+        self.sub_network1.cuda(0)
+        self.sub_network2.cuda(7)
 
     def forward(self, x):
         x = x.cuda(0)
         x = self.sub_network1(x)
-        print(x.shape) # B C H W
+        x = x.cuda(7) # B C H W
         x = self.sub_network2(x)
         return x
         
 if __name__ == '__main__':
 
-        lstm = Merge_LSTM(256, 6, 3).cuda().half()
+        lstm = Merge_LSTM(256, 6, 3).cuda()
         print(lstm)
-        inputs = torch.rand(1,499,3,240,200).float().cuda().half()
+        inputs = torch.rand(1,499,3,240,200).float().cuda()
         #import pdb; pdb.set_trace()
         out = lstm(inputs)
 

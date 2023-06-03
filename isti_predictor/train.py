@@ -55,7 +55,7 @@ def main():
         parser.add_argument('-phase',type=str,required=False, default='train',help='train/test mode')
         parser.add_argument('-split','--train_val_split', type=float, required=False, default=0.95,\
                                                 help='train/test mode')
-        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=15, \
+        parser.add_argument('-min_batch', '--frames_in_GPU',type=int,required=False, default=10, \
                                                 help='number of frames per batch from the video to go in GPU')
 
         #Parameters for existing model reload
@@ -106,11 +106,12 @@ def main():
         random.seed(seed)
         
         #Initializing Network & LSTM dimension
-        frame_rate = 15; in_dim = 256*64*64; h_dim = frame_rate*30; num_l = 6
+        frame_rate = 15; in_dim = 256*4*4; h_dim = frame_rate*30; num_l = 6
         print("Initializing Network")
         # model  = net_model(in_dim, h_dim, num_l, frame_rate, fps)
         # fps = snippet size num frames in GPU 
         model  = overall_model(in_dim, h_dim, num_l, frame_rate, fps)
+
         #Freez parameters and layers training control
         layers           = ('lstm_layer')
         lstm_train       = []
@@ -124,14 +125,13 @@ def main():
                         p.requires_grad = True
                         lstm_train.append(p)
                 else:
-                        if "patch_embed.proj" in n:
+                        if "conv_layer" in n:
                                 p.requires_grad = True
                         else:
                                 p.requires_grad = False
                         
                         resnet_train.append(p)
-                        
-
+        
         #Optimizer
         #breakpoint()
         print("Initializing optimizer")
