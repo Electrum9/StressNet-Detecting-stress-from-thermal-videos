@@ -153,6 +153,7 @@ def main():
         '''create subsets'''
         datasets['train'] = torch.utils.data.Subset(dataset, trainIdxs)
         datasets['test']  = torch.utils.data.Subset(dataset, valIdxs)
+        breakpoint()
         print("number of training samples", len(datasets['train']))
         #print(datasets['train'].dataset)
         dataloader_tr  = torch.utils.data.DataLoader(datasets['train'], batch_size=batch_size, \

@@ -38,8 +38,13 @@ class VideoLoader(preprocess_face, non_linearity):
 			print("Video file ", self.par_vid_path, "not found")
 			return -1, -1
 		
-		video_mat = h5py.File(self.vid_path[0],'r')['data']
-		print(video_mat)
+		if 'test' in self.vid_path[0]:
+			video_mat = sio.loadmat(self.vid_path[0])['data'].squeeze()
+			video_mat = np.transpose(video_mat, axes=(2, 1, 0))
+		else:
+			video_mat = h5py.File(self.vid_path[0],'r')['data']
+		print(video_mat.shape)
+
 		if(video_mat.shape[0] == 0):
 			print("no frames read...")
 		else:
@@ -61,7 +66,11 @@ class LabelLoader:
 
 	def __call__(self,index):
 		print("loading isti signal")
-		self.isti_signal = np.load(self.label_dir[index])
+		file = self.label_dir[index]
+		if 'test' in file:
+			self.isti_signal = sio.loadmat(file)['data']
+		else:
+			self.isti_signal = np.load(file)
 		#take derivate as we took for video frames too and normalize.
 		self.isti_signal -= self.isti_signal.min()
 		self.isti_signal /= self.isti_signal.max()
@@ -131,14 +140,21 @@ class thermaldataset(tdata.Dataset):
 		label_data = self.labelloader(index)
 		
 		#vid filename
-		label_fname = self.all_dir[index].split('/')[-1].split('_')
-		sub			= label_fname[0].split('sj')[-1]
-		ses			= label_fname[1].split('se')[-1].split('0')[-1]
-		vid_fname	= f'BOSS_-BOSS_{sub}_1_{ses}_{label_fname[2]}-*'
-		#stress label
-		stress_label = 0
-		if int(ses) == 3: stress_label = 0 #no stress condition
-		if int(ses) == 2: stress_label = 1 #stress condition
+		if 'test' in self.all_dir[index]:
+			label_fname = self.all_dir[index].split('/')[-1].split('_')
+			stress_label = int(label_fname[2].split('.')[0])
+			vid_fname = f"{label_fname[0]}_ir_{stress_label}*" # get right video
+
+		else:
+			label_fname = self.all_dir[index].split('/')[-1].split('_')
+			sub			= label_fname[0].split('sj')[-1]
+			ses			= label_fname[1].split('se')[-1].split('0')[-1]
+			vid_fname	= f'BOSS_-BOSS_{sub}_1_{ses}_{label_fname[2]}-*'
+			#stress label
+			stress_label = 0
+			if int(ses) == 3: stress_label = 0 #no stress condition
+			if int(ses) == 2: stress_label = 1 #stress condition
+		print(vid_fname)
 		#IR video data
 		ir_video_data, cur_label = self.videoloader(vid_fname)
 		#In case the video read fails
@@ -149,7 +165,12 @@ class thermaldataset(tdata.Dataset):
 		print("shape of video data and name of file loaded", ir_video_data.shape, vid_fname)
 		
 		#ir video & ecg signal sync
-		start_ts = self.videcg_sync(sub, ses, label_fname[2])
+
+		if "test" in self.all_dir[index]:
+			start_ts = 60
+		else:
+			start_ts = self.videcg_sync(sub, ses, label_fname[2])
+			
 		'''IR vid frame rate : 15hz'''
 		'''label fram rate is 120hz: i.e. 8 labels per video frame'''
 		if(start_ts > 0):
