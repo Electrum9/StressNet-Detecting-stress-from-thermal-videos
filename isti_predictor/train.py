@@ -21,7 +21,6 @@ from torchvision import models
 import torch.optim as optim
 from tqdm import tqdm
 import wandb
-# from torch.nn.functional import one_hot
 
 from model.network import Merge_LSTM as net_model
 from dataloader.dataloader import thermaldataset
