@@ -21,6 +21,8 @@ from torchvision import models
 import torch.optim as optim
 from tqdm import tqdm
 import wandb
+from pprint import pp
+# from torch.nn.functional import one_hot
 
 from model.network import Merge_LSTM as net_model
 from dataloader.dataloader import thermaldataset
@@ -116,6 +118,7 @@ def main():
 
         trans_train  = []
         resnet_train  = []
+        mlp_train = []
         # breakpoint()
 
         for n, p in model.named_parameters():
@@ -125,12 +128,17 @@ def main():
                         pass
                 if layer in {'encoder'}:
                         trans_train.append(p)
-                elif layer in {'spatial_backbone', 'proj', 'classifier'}:
+                elif layer in {'spatial_backbone', 'proj',}:
                         resnet_train.append(p)
+                elif layer in {'classifier'}:
+                    mlp_train.append(p)
+
 
         #Optimizer
         print("Initializing optimizer")
-        optimizer = optim.Adam([{"params": resnet_train, "lr": 0.0001}, {"params": trans_train}], lr=l_rate)
+        optimizer = optim.Adam([{"params": resnet_train, "lr": 1e-5},
+                                {"params": trans_train, "lr": 1e-4},
+                                {"params": mlp_train, "lr": 1e-4}])
 
         #Network to GPU
         model.cuda()
@@ -139,7 +147,8 @@ def main():
         print("Initializing scheduler")
         lambda1   = lambda epoch : 1.0 if epoch<10 else (0.1 if epoch<20 else 0.1)
         lambda2   = lambda epoch : 1.0 if epoch<20 else (0.1 if epoch<30 else 0.1)
-        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[lambda1, lambda2])
+        lambda3   = lambda epoch : 1.0 if epoch<20 else (0.1 if epoch<30 else 0.1)
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=[lambda1, lambda2, lambda3])
                 
         #Dataloader
         print("Initializing dataloader")
@@ -153,8 +162,8 @@ def main():
         '''create subsets'''
         datasets['train'] = torch.utils.data.Subset(dataset, trainIdxs)
         datasets['test']  = torch.utils.data.Subset(dataset, valIdxs)
-        # breakpoint()
         print("number of training samples", len(datasets['train']))
+        # breakpoint()
         #print(datasets['train'].dataset)
         dataloader_tr  = torch.utils.data.DataLoader(datasets['train'], batch_size=batch_size, \
                                                                                                 shuffle=True, num_workers=workers)
@@ -235,11 +244,14 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
         plot_train_acc  = []
         plot_test_acc   = []
         
+        # correct = 0
 
         for epoch in range(params['cur_epoch'], params['epochs']):
                 optimizer.zero_grad()
                 train_loss = 0.0
                 train_acc  = 0.0
+                train_confidence = 0.0
+
                 print('Epoch {}/{}'.format(epoch, params['epochs']-1))
 
                 if params['phase'] == 'train':
@@ -268,7 +280,7 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                                                 label_idx = idx*1
                                                 mini_input = inputs[:,idx:idx+params['fps'],:,:]
                                                 mini_label = labels[:,label_idx:label_idx+(params['fps']),:]
-                                                # breakpoint()
+                                                breakpoint()
                                                 #if section of video less then fps seconds, then drop the rest of the video
                                                 if params['fps'] > len(mini_label.squeeze()): continue
                                                 # mini_out, out2   = model(mini_input) # TODO: mini_out is ISTI, get rid of it
@@ -287,7 +299,7 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
 
                                                 if(math.isnan(loss_total.item())):
                                                         print("gradient explosion or vanished, updated learning rate")
-                                                cur_loss   = loss_total
+                                                cur_loss = loss_total
                                                 running_loss  = running_loss + loss_total.item()
                                                 cur_loss.backward()
                                                 print("Local loss: ", cur_loss.item())
@@ -299,17 +311,29 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                                                 stress_predictions.append(out2)
                                         
                                         running_loss = running_loss
-                                        train_loss       = train_loss +  running_loss
-                                        train_acc        = train_acc + running_acc
+                                        train_loss = train_loss +  running_loss
 
                                         #whole video stress prediction
                                         stress_predictions = torch.cat(stress_predictions)
-                                        stress_predictions[stress_predictions>=0.5] = 1
-                                        stress_predictions[stress_predictions<0.5] = 0
-                                        if (torch.sum(stress_predictions)/len(stress_predictions))>=0.5:
-                                                print("STRESS DETECTED IN THE SUBJECT", s_label)
+                                        # breakpoint()
+                                        stress_predictions = stress_predictions >= 0
+                                        # stress_predictions[stress_predictions >= 0] = 1
+                                        # stress_predictions[stress_predictions < 0] = 0
+
+                                        overall_prediction = 0
+                                        confidence = torch.sum(stress_predictions)/len(stress_predictions) # confidence that video is of stressed participant
+
+                                        if confidence >= 0.5:
+                                                print(f"STRESS DETECTED IN THE SUBJECT: {s_label}, CONFIDENCE: {confidence}")
+                                                overall_prediction = 1
                                         else:
-                                                print("NO-STRESS DETECTED", s_label)
+                                            print(f"NO-STRESS DETECTED: {s_label}, CONFIDENCE: {1 - confidence}")
+                                            confidence = 1 - confidence
+
+                                        train_confidence += confidence
+
+                                        if overall_prediction == s_label:
+                                            train_acc += 1
                                                 
                                         #save_prediction(labels.data, label_predictions, iteration)
 
@@ -324,12 +348,12 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                                 mean_train_acc = train_acc/(iteration+1)
 
                                 cur_training_vars = {'Training_loss': mean_train_loss,
-                                                                         'Train_acc'    : mean_train_acc,
-                                                                         'Phase'                : params['phase'],
-                                                                         'epoch'                : epoch+1,
-                                                                         'iteration'    : iteration+1,
-                                                                         'Leaning Rate' : scheduler.get_lr()
-                                                                        }
+                                                     'Train_acc': mean_train_acc,
+                                                     'Phase': params['phase'],
+                                                     'epoch': epoch+1,
+                                                     'iteration': iteration+1,
+                                                     'Leaning Rate': scheduler.get_lr()
+                                                     }
                                 best_training_vars= {'Best_train_loss': best_train_loss,
                                                                          'Min Loss epoch' : best_epoch_train
                                                                         }
@@ -351,6 +375,14 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                 #Validating the model
                 test_loss = 0
                 test_acc = 0
+                TP, FP, TN, FN = 0, 0, 0, 0
+                precision = None
+                recall = None
+                tpr = None
+                tnr = None
+                acc = None
+                bal_acc = None
+
                 for iteration, data in enumerate(tqdm(dataloader['test'])):
                         running_loss   = 0.0
                         running_acc    = 0.0
@@ -367,6 +399,7 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                         print("Test input: ", inputs.shape, "label: ", labels.shape, iteration)
                         b_size, num_frames, ch, h, w = inputs.shape
                         with torch.no_grad():
+                                predictions = []
                                 for idx in range(0, num_frames, params['fps']):
                                         # breakpoint()
                                         mini_input = inputs[:,idx:idx+params['fps'],:,:]
@@ -383,31 +416,75 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                                         print("Local loss : ", cur_loss)
 
                                         #predictions
+                                        predictions.append(out2)
                                         # pep_preds  = predict_pep(mini_out)
                                         # correlation= corr.pearson_correlation(pep_preds, mini_label)
                                         # cur_corr   = correlation.item()
                                         # running_acc = running_acc + abs(cur_corr)
 
-                                running_loss= running_loss
-                                test_loss       = test_loss + running_loss
-                                test_acc        = test_acc + running_acc
+                                predictions = torch.cat(predictions) >= 0
+                                test_loss = test_loss + running_loss
+
+                                confidence = torch.sum(predictions) / len(predictions) # confidence score for whether video is of stressed individual
+                                overall_prediction = 0
+
+                                if confidence >= 0.5:
+                                    overall_prediction = 1
+                                    print(f"STRESS PREDICTED with CONFIDENCE: {confidence}, ACTUAL {s_label}")
+                                else:
+                                    confidence = 1 - confidence
+                                    print(f"NO STRESS PREDICTED, CONFIDENCE: {confidence}, ACTUAL {s_label}")
+
+                                if overall_prediction == s_label:
+                                    test_acc  += 1
+                                # test_acc = test_acc + running_acc
+
+
+                                correct = (s_label.item() == overall_prediction)
+
+                                if overall_prediction == 1: # Positive
+                                    if correct:
+                                        TP += 1
+                                    else:
+                                        FP += 1
+                                else:
+                                    if correct:
+                                        TN += 1
+                                    else:
+                                        FN += 1
+
+                                print(f"{(TP, FP, TN, FN)=}")
+
+                        precision = TP/(TP+FP) if TP+FP else None
+                        recall = TP/(TP+FN) if TP+FN else None
+                        tpr = recall
+                        tnr = TN/(TN+FP) if TN+FP else None
+                        acc = (TP+TN)/(TP+TN+FP+FN) if TP+TN+FP+FN else None
+                        bal_acc = (tpr+tnr)/2 if tpr and tnr else None
 
                         #mean test loss and acc
-                        mean_test_loss = test_loss/(iteration+1)
-                        mean_test_acc  = test_acc/(iteration+1)
+                        mean_test_loss = test_loss / (iteration+1)
+                        mean_test_acc  = test_acc / (iteration+1)
 
                         cur_test_vars = {'Test_loss': mean_test_loss,
-                                                         'Test_accuracy' : mean_test_acc,
-                                                         'Phase'        : 'Test',
-                                                         'epoch'        : epoch+1,
-                                                         'iteration': iteration+1
-                                                        }
+                                         'Precision': precision,
+                                         'Recall': recall,
+                                         'TNR': tnr,
+                                         'Classification Accuracy': acc,
+                                         'Balanced Accuracy': bal_acc,
+                                         'Phase': 'Test',
+                                         'epoch': epoch+1,
+                                         'iteration': iteration+1
+                                         }
                         best_test_vars= {'Best_test_loss':best_test_loss,
                                                          'Min Loss epoch':best_epoch_test
                                                         }
                         if args.use_wandb:
                                 wandb.log(cur_test_vars)
-                        print("Current Test Vars: ", cur_test_vars, "Best Test Vars: ", best_test_vars)
+                        print("Current Test Vars: ")
+                        pp(cur_test_vars) 
+                        print("Best Test Vars: ") 
+                        pp(best_test_vars)
 
                 try:
                         mean_test_loss = mean_test_loss.item()
