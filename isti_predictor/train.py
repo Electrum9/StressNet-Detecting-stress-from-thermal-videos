@@ -268,6 +268,7 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                                                 label_idx = idx*1
                                                 mini_input = inputs[:,idx:idx+params['fps'],:,:]
                                                 mini_label = labels[:,label_idx:label_idx+(params['fps']),:]
+                                                # breakpoint()
                                                 #if section of video less then fps seconds, then drop the rest of the video
                                                 if params['fps'] > len(mini_label.squeeze()): continue
                                                 # mini_out, out2   = model(mini_input) # TODO: mini_out is ISTI, get rid of it
@@ -367,6 +368,7 @@ def training_loop(args, model, optimizer, scheduler, dataloader, loss, **params)
                         b_size, num_frames, ch, h, w = inputs.shape
                         with torch.no_grad():
                                 for idx in range(0, num_frames, params['fps']):
+                                        # breakpoint()
                                         mini_input = inputs[:,idx:idx+params['fps'],:,:]
                                         mini_label = labels[:,idx:idx+params['fps'],:]
                                         if params['fps'] > len(mini_label.squeeze()): continue  
